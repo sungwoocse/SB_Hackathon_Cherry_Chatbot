@@ -1,0 +1,8 @@
+{
+  "name": "sb-hackathon-cherry-chatbot",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "rm -rf build && mkdir -p build && cp dummyfile.html build/index.html"
+  }
+}
