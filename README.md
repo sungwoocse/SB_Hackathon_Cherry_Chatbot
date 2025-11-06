@@ -1,4 +1,4 @@
-# Cherry Deploy Project
+# Cherry Deploy Project (가제)
 
 SoftBank Hackathon 2025 (Team Cherry) - "Make Deployment Delightful" 테마 프로젝트
 
