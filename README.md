@@ -7,7 +7,7 @@ SoftBank Hackathon 2025 (Team Cherry) - "Make Deployment Delightful" 테마 프�
 ### 🍒 Team
 * Cherry
 
-### 🛠️ Core Tech Stack (예정)
+### 🛠️ Core Tech Stack
 * **Frontend:** Next.js
 * **Backend:** Python
 * **Cloud:** AWS EC2
