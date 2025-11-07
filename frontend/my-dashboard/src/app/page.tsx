@@ -68,6 +68,7 @@ export default function Page() {
 
   // ✅ API: 배포 시작
   const handleDeploy = async () => {
+    if (deploying) return;
     setDeploying(true);
     try {
       const res = await api.post("/api/v1/deploy", { branch: "deploy" });
@@ -75,7 +76,6 @@ export default function Page() {
       setError(null);
     } catch (err: any) {
       setError("배포 요청 실패");
-    } finally {
       setDeploying(false);
     }
   };
@@ -104,9 +104,15 @@ export default function Page() {
           timestamp: new Date().toISOString(),
         }));
         setLastUpdate(new Date().toLocaleTimeString());
-        if (["completed", "failed"].includes(s)) clearInterval(interval);
+        if (["completed", "failed"].includes(s)) {
+          setDeploying(false);
+          setTaskId(null);
+          clearInterval(interval);
+        }
       } catch (err) {
         console.error(err);
+        setDeploying(false);
+        setTaskId(null);
         clearInterval(interval);
       }
     }, 3000);
