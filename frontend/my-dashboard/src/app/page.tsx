@@ -71,6 +71,7 @@ export default function Page() {
   const [recentTasks, setRecentTasks] = useState<DeployTaskSummary[]>([]);
   const [failureInfo, setFailureInfo] = useState<Record<string, unknown> | null>(null);
   const [currentStages, setCurrentStages] = useState<Record<string, Record<string, unknown>>>({});
+  const [taskTimezone, setTaskTimezone] = useState<string>("Asia/Seoul");
 
   const [preflightOpen, setPreflightOpen] = useState(false);
   const [preflightLoading, setPreflightLoading] = useState(false);
@@ -85,7 +86,6 @@ export default function Page() {
   const liveStages = Object.entries(currentStages || {});
   const llmSummary = previewDetail?.llm_preview?.summary ?? null;
   const riskAssessment = previewDetail?.risk_assessment ?? null;
-  const costEstimate = previewDetail?.cost_estimate ?? null;
 
   const blueGreenInfo = useMemo<BlueGreenPlan | null>(() => {
     if (previewDetail?.blue_green_plan) return previewDetail.blue_green_plan;
@@ -247,6 +247,7 @@ export default function Page() {
         setState({ status: payload.status, timestamp: new Date().toISOString() });
         setCurrentStages(payload.stages || {});
         setFailureInfo(payload.failure_context || null);
+        setTaskTimezone(payload.timezone || "Asia/Seoul");
         setLastUpdate(new Date().toLocaleTimeString());
         if (["completed", "failed"].includes(payload.status)) {
           setDeploying(false);
@@ -270,10 +271,10 @@ export default function Page() {
   const heroProgress = PROGRESS_BY_STATUS[state.status || "pending"] ?? 8;
   const showReloadNotice = Boolean(taskId);
 
-  const formatKST = (value?: string | null) => {
+  const formatDateTime = (value?: string | null, timezone = "Asia/Seoul") => {
     if (!value) return "정보 없음";
     const formatter = new Intl.DateTimeFormat("ko-KR", {
-      timeZone: "Asia/Seoul",
+      timeZone: timezone,
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
@@ -282,7 +283,20 @@ export default function Page() {
       second: "2-digit",
       hour12: true,
     });
-    return `${formatter.format(new Date(value))} (KST)`;
+    const badge = timezone === "Asia/Seoul" ? "KST" : timezone;
+    return `${formatter.format(new Date(value))} (${badge})`;
+  };
+
+  const formatTimeOnly = (value?: string | null, timezone = "Asia/Seoul") => {
+    if (!value) return null;
+    const formatter = new Intl.DateTimeFormat("ko-KR", {
+      timeZone: timezone,
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true,
+    });
+    return formatter.format(new Date(value));
   };
 
   const resolveSlotLabel = (value?: string | null) => {
@@ -320,12 +334,14 @@ export default function Page() {
 
   const renderHero = () => {
     if (taskId) {
+      const timezoneBadge = taskTimezone === "Asia/Seoul" ? "KST" : taskTimezone;
       return (
         <div className="bg-gray-800 rounded-2xl border border-gray-700 p-6 mb-8">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
               <p className="text-sm text-gray-400">현재 배포 Task</p>
               <p className="text-2xl font-semibold text-white">{taskId}</p>
+              <p className="text-xs text-gray-500 mt-1">표준시: {timezoneBadge}</p>
             </div>
             <p className={`text-lg font-semibold ${cardStatusColor}`}>
               {(state.status || "진행 중").replace("running_", "RUNNING ").toUpperCase()}
@@ -439,15 +455,44 @@ export default function Page() {
           </div>
           {previewTimeline.length ? (
             <ul className="mt-4 space-y-2 text-sm">
-              {previewTimeline.map((entry: DeployTimelineEntry) => (
-                <li key={entry.stage} className="flex items-start gap-2">
-                  <span className={entry.completed ? "text-green-400" : "text-gray-600"}>•</span>
-                  <div>
-                    <p className="text-gray-100">{entry.label}</p>
-                    {entry.expected_seconds && <p className="text-xs text-gray-500">예상 {entry.expected_seconds}s</p>}
-                  </div>
-                </li>
-              ))}
+              {previewTimeline.map((entry: DeployTimelineEntry) => {
+                const metadata = (entry.metadata || {}) as Record<string, unknown>;
+                const plan = metadata["plan"];
+                const checks = metadata["checks"];
+                const etaSeconds = metadata["eta_seconds"];
+                const hasMetadataDetails =
+                  Boolean(plan) || Boolean(checks) || typeof etaSeconds === "number";
+                return (
+                  <li key={entry.stage} className="flex items-start gap-2">
+                    <span className={entry.completed ? "text-green-400" : "text-gray-600"}>•</span>
+                    <div>
+                      <p className="text-gray-100">{entry.label}</p>
+                      {entry.expected_seconds && <p className="text-xs text-gray-500">예상 {entry.expected_seconds}s</p>}
+                      {hasMetadataDetails && (
+                        <div className="mt-1 space-y-1 text-xs text-gray-400">
+                          {plan !== undefined && plan !== null && (
+                            <p>
+                              <span className="text-[10px] uppercase tracking-wide text-gray-500">Plan</span>{" "}
+                              {formatInfoValue(plan)}
+                            </p>
+                          )}
+                          {checks !== undefined && checks !== null && (
+                            <p>
+                              <span className="text-[10px] uppercase tracking-wide text-gray-500">Checks</span>{" "}
+                              {formatInfoValue(checks)}
+                            </p>
+                          )}
+                          {typeof etaSeconds === "number" && (
+                            <p>
+                              <span className="text-[10px] uppercase tracking-wide text-gray-500">ETA</span> 약 {etaSeconds}초
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           ) : (
             <p className="mt-4 text-sm text-gray-500">프리뷰 데이터를 불러오는 중입니다.</p>
@@ -461,7 +506,7 @@ export default function Page() {
               {liveStages.map(([stage, details]) => {
                 const timestamp =
                   details && typeof details.timestamp === "string"
-                    ? new Date(details.timestamp).toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul" })
+                    ? formatTimeOnly(details.timestamp, taskTimezone)
                     : null;
                 return (
                   <li key={stage} className="flex items-start gap-2">
@@ -477,6 +522,7 @@ export default function Page() {
           ) : (
             <p className="mt-4 text-sm text-gray-500">진행 중인 Stage 정보가 없습니다.</p>
           )}
+          <p className="text-xs text-gray-500 mt-3">Timezone: {taskTimezone === "Asia/Seoul" ? "KST" : taskTimezone}</p>
           {failureInfo && (
             <div className="mt-4 text-xs text-red-200 bg-red-900/20 border border-red-700 rounded p-3 whitespace-pre-wrap">
               {JSON.stringify(failureInfo, null, 2)}
@@ -505,7 +551,10 @@ export default function Page() {
                   Standby Slot: <span className="text-white font-semibold">{blueGreenInfo.standby_slot}</span>
                 </p>
               )}
-              <p>마지막 컷오버: {blueGreenInfo.last_cutover_at ? formatKST(blueGreenInfo.last_cutover_at) : "기록 없음"}</p>
+              <p>
+                마지막 컷오버:{" "}
+                {blueGreenInfo.last_cutover_at ? formatDateTime(blueGreenInfo.last_cutover_at, previewDetail?.timezone || "Asia/Seoul") : "기록 없음"}
+              </p>
               {resolveSlotLabel(blueGreenInfo.next_cutover_target) && <p>다음 전환 예정: {blueGreenInfo.next_cutover_target}</p>}
             </div>
           ) : (
@@ -522,46 +571,28 @@ export default function Page() {
               ))}
             </ul>
           ) : (
-            <p className="mt-3 text-sm text-gray-500">특이사항 없음</p>
+            <p className="mt-3 text-sm text-gray-500">경고 데이터가 없습니다.</p>
           )}
         </motion.div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <motion.div className="bg-gray-800 p-6 rounded-2xl border border-gray-800" variants={cardVariants} initial="hidden" animate="visible" custom={4}>
-          <p className="text-lg font-semibold">📉 Risk Assessment</p>
-          {riskAssessment ? (
-            <ul className="mt-4 space-y-3 text-sm">
-              {Object.entries(riskAssessment).map(([key, value]) => (
-                <li key={`risk-${key}`}>
-                  <p className="text-xs uppercase tracking-wide text-gray-500">{key}</p>
-                  <p className="text-gray-100 whitespace-pre-wrap">{formatInfoValue(value)}</p>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-4 text-sm text-gray-500">위험 정보가 아직 없습니다.</p>
-          )}
-        </motion.div>
+      <motion.div className="bg-gray-800 p-6 rounded-2xl border border-gray-800 mb-6" variants={cardVariants} initial="hidden" animate="visible" custom={4}>
+        <p className="text-lg font-semibold">📉 Risk Assessment</p>
+        {riskAssessment ? (
+          <ul className="mt-4 space-y-3 text-sm">
+            {Object.entries(riskAssessment).map(([key, value]) => (
+              <li key={`risk-${key}`}>
+                <p className="text-xs uppercase tracking-wide text-gray-500">{key}</p>
+                <p className="text-gray-100 whitespace-pre-wrap">{formatInfoValue(value)}</p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-4 text-sm text-gray-500">위험 정보가 아직 없습니다.</p>
+        )}
+      </motion.div>
 
-        <motion.div className="bg-gray-800 p-6 rounded-2xl border border-gray-800" variants={cardVariants} initial="hidden" animate="visible" custom={5}>
-          <p className="text-lg font-semibold">💰 Cost Estimate</p>
-          {costEstimate ? (
-            <ul className="mt-4 space-y-3 text-sm">
-              {Object.entries(costEstimate).map(([key, value]) => (
-                <li key={`cost-${key}`}>
-                  <p className="text-xs uppercase tracking-wide text-gray-500">{key}</p>
-                  <p className="text-gray-100 whitespace-pre-wrap">{formatInfoValue(value)}</p>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-4 text-sm text-gray-500">비용 추정치가 아직 생성되지 않았습니다.</p>
-          )}
-        </motion.div>
-      </div>
-
-      <motion.div className="bg-gray-800 p-6 rounded-2xl border border-gray-800 mb-6" variants={cardVariants} initial="hidden" animate="visible" custom={6}>
+      <motion.div className="bg-gray-800 p-6 rounded-2xl border border-gray-800 mb-6" variants={cardVariants} initial="hidden" animate="visible" custom={5}>
         <div className="flex items-center justify-between mb-3">
           <p className="text-lg font-semibold">📝 최근 작업</p>
           <button onClick={fetchRecent} className="text-xs px-2 py-1 bg-gray-700 rounded hover:bg-gray-600">
@@ -570,17 +601,27 @@ export default function Page() {
         </div>
         {recentTasks.length ? (
           <ul className="space-y-3 text-sm">
-            {recentTasks.map((task) => (
-              <li key={task.task_id} className="rounded border border-gray-700 p-3 bg-gray-900/30">
-                <p className="text-white font-semibold">
-                  {task.action.toUpperCase()} · {task.branch}
-                </p>
-                <p className="text-xs text-gray-400">
-                  {formatKST(task.started_at)} → {task.completed_at ? formatKST(task.completed_at) : "진행 중"}
-                </p>
-                <p className="text-xs text-gray-300">status: {task.status} · actor: {resolveActor(task)}</p>
-              </li>
-            ))}
+            {recentTasks.map((task) => {
+              const timezone = task.timezone || "Asia/Seoul";
+              const badge = timezone === "Asia/Seoul" ? "KST" : timezone;
+              return (
+                <li key={task.task_id} className="rounded border border-gray-700 p-3 bg-gray-900/30">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-white font-semibold">
+                      {task.action.toUpperCase()} · {task.branch}
+                    </p>
+                    <span className="text-[10px] uppercase tracking-wide text-gray-500 border border-gray-600 px-2 py-0.5 rounded-full">
+                      {badge}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-400">
+                    {formatDateTime(task.started_at, timezone)} →{" "}
+                    {task.completed_at ? formatDateTime(task.completed_at, timezone) : "진행 중"}
+                  </p>
+                  <p className="text-xs text-gray-300">status: {task.status} · actor: {resolveActor(task)}</p>
+                </li>
+              );
+            })}
           </ul>
         ) : (
           <p className="text-sm text-gray-500">최근 작업 내역이 없습니다.</p>
@@ -647,19 +688,6 @@ export default function Page() {
                     <ul className="space-y-2 bg-gray-950/60 p-3 rounded border border-gray-800 text-sm text-gray-200">
                       {Object.entries(preflightData.risk_assessment).map(([key, value]) => (
                         <li key={`preflight-riskdetail-${key}`}>
-                          <p className="text-xs uppercase tracking-wide text-gray-500">{key}</p>
-                          <p className="whitespace-pre-wrap">{formatInfoValue(value)}</p>
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
-                )}
-                {preflightData.cost_estimate && (
-                  <section>
-                    <p className="text-xs text-gray-500 mb-1">비용 추정</p>
-                    <ul className="space-y-2 bg-gray-950/60 p-3 rounded border border-gray-800 text-sm text-gray-200">
-                      {Object.entries(preflightData.cost_estimate).map(([key, value]) => (
-                        <li key={`preflight-cost-${key}`}>
                           <p className="text-xs uppercase tracking-wide text-gray-500">{key}</p>
                           <p className="whitespace-pre-wrap">{formatInfoValue(value)}</p>
                         </li>
