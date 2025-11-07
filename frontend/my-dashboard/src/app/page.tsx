@@ -8,7 +8,6 @@ import { API_BASE_URL, JSON_HEADERS } from "@/lib/api";
 import type {
   BlueGreenPlan,
   DeployPreviewResponse,
-  DeployTaskLogResponse,
   DeployTaskSummary,
   DeployTimelineEntry,
   HealthStatusResponse,
@@ -41,6 +40,16 @@ const cardVariants = {
   visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.08 } }),
 };
 
+type TaskSummaryData = {
+  git_commit?: {
+    author?: {
+      name?: string | null;
+      email?: string | null;
+    } | null;
+  } | null;
+  actor?: string | null;
+};
+
 export default function Page() {
   const [state, setState] = useState<DashboardState>({ status: "READY" });
   const [loading, setLoading] = useState(true);
@@ -54,8 +63,6 @@ export default function Page() {
   const [previewDetail, setPreviewDetail] = useState<DeployPreviewResponse | null>(null);
   const [healthInfo, setHealthInfo] = useState<HealthStatusResponse | null>(null);
   const [recentTasks, setRecentTasks] = useState<DeployTaskSummary[]>([]);
-  const [taskLogs, setTaskLogs] = useState<DeployTaskLogResponse | null>(null);
-  const [logLoading, setLogLoading] = useState(false);
   const [failureInfo, setFailureInfo] = useState<Record<string, unknown> | null>(null);
   const [currentStages, setCurrentStages] = useState<Record<string, Record<string, unknown>>>({});
 
@@ -122,18 +129,6 @@ export default function Page() {
       setRecentTasks(res.data);
     } catch (err) {
       console.error(err);
-    }
-  };
-
-  const fetchLogs = async (id: string) => {
-    try {
-      setLogLoading(true);
-      const res = await api.get<DeployTaskLogResponse>(`/api/v1/tasks/${id}/logs`);
-      setTaskLogs(res.data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLogLoading(false);
     }
   };
 
@@ -235,7 +230,6 @@ export default function Page() {
   useEffect(() => {
     if (!taskId) return;
     fetchPreview(taskId);
-    fetchLogs(taskId);
   }, [taskId]);
 
   useEffect(() => {
@@ -269,6 +263,21 @@ export default function Page() {
 
   const heroProgress = PROGRESS_BY_STATUS[state.status || "pending"] ?? 8;
   const showReloadNotice = Boolean(taskId);
+
+  const formatKST = (value?: string | null) => {
+    if (!value) return "정보 없음";
+    return new Date(value).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
+  };
+
+  const resolveActor = (summary?: TaskSummaryData | null) => {
+    if (!summary) return "알 수 없음";
+    const authorName = summary.git_commit?.author?.name;
+    const authorEmail = summary.git_commit?.author?.email;
+    if (authorName) return authorName;
+    if (authorEmail) return authorEmail;
+    if (summary.actor) return summary.actor;
+    return "알 수 없음";
+  };
 
   const renderHero = () => {
     if (taskId) {
@@ -503,9 +512,9 @@ export default function Page() {
                   {task.action.toUpperCase()} · {task.branch}
                 </p>
                 <p className="text-xs text-gray-400">
-                  {new Date(task.started_at).toLocaleString()} → {task.completed_at ? new Date(task.completed_at).toLocaleString() : "진행 중"}
+                  {formatKST(task.started_at)} → {task.completed_at ? formatKST(task.completed_at) : "진행 중"}
                 </p>
-                <p className="text-xs text-gray-300">status: {task.status}</p>
+                <p className="text-xs text-gray-300">status: {task.status} · actor: {resolveActor(task.summary as TaskSummaryData | undefined)}</p>
               </li>
             ))}
           </ul>
