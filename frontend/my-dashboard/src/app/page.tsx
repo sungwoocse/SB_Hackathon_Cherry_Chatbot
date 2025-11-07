@@ -282,14 +282,22 @@ export default function Page() {
     return `${formatter.format(new Date(value))} (KST)`;
   };
 
+  const resolveSlotLabel = (value?: string | null) => {
+    if (!value) return null;
+    const normalized = value.trim().toLowerCase();
+    if (!normalized || normalized === "unknown" || normalized === "n/a") return null;
+    return value;
+  };
+
   const resolveActor = (task: DeployTaskSummary) => {
+    const directActor = task.actor;
     const summary = task.summary as TaskSummaryData | undefined;
     const metadata = task.metadata as TaskMetadata | undefined;
     const authorName = summary?.git_commit?.author?.name;
     const authorEmail = summary?.git_commit?.author?.email;
     const summaryActor = summary?.actor;
     const metadataActor = metadata?.actor || metadata?.requested_by || metadata?.trigger;
-    return authorName || authorEmail || summaryActor || metadataActor || "기록 없음";
+    return directActor || authorName || authorEmail || summaryActor || metadataActor || "기록 없음";
   };
 
   const renderHero = () => {
@@ -312,9 +320,16 @@ export default function Page() {
             pending → running_clone → running_build → running_cutover → running_observability → completed
           </p>
           {blueGreenInfo && (
-            <p className="mt-4 text-sm text-gray-300">
-              Active Slot: <span className="text-white font-semibold">{blueGreenInfo.active_slot}</span> · Next Target: {blueGreenInfo.next_cutover_target || "미정"}
-            </p>
+            <div className="mt-4 text-sm text-gray-300 space-y-1">
+              {resolveSlotLabel(blueGreenInfo.active_slot) ? (
+                <p>
+                  Active Slot: <span className="text-white font-semibold">{blueGreenInfo.active_slot}</span>
+                </p>
+              ) : (
+                <p>Active Slot 정보 없음</p>
+              )}
+              {resolveSlotLabel(blueGreenInfo.next_cutover_target) && <p>Next Target: {blueGreenInfo.next_cutover_target}</p>}
+            </div>
           )}
         </div>
       );
@@ -343,13 +358,22 @@ export default function Page() {
             </button>
           </div>
         </div>
-        <p className="mt-4 text-gray-200">
-          “배포 준비” 버튼을 눌러 최신 변경 요약과 위험 요소를 확인한 뒤 실제 배포를 실행하세요.
-        </p>
+        <p className="mt-4 text-gray-200">&quot;배포 준비&quot; 버튼을 눌러 최신 변경 요약과 위험 요소를 확인한 뒤 실제 배포를 실행하세요.</p>
         {blueGreenInfo ? (
-          <p className="mt-3 text-sm text-gray-400">
-            Active Slot: <span className="text-white">{blueGreenInfo.active_slot}</span> · Standby: {blueGreenInfo.standby_slot || "N/A"}
-          </p>
+          <div className="mt-3 text-sm text-gray-400 space-y-1">
+            {resolveSlotLabel(blueGreenInfo.active_slot) ? (
+              <p>
+                Active Slot: <span className="text-white">{blueGreenInfo.active_slot}</span>
+              </p>
+            ) : (
+              <p>Active Slot 정보 없음</p>
+            )}
+            {resolveSlotLabel(blueGreenInfo.standby_slot) && (
+              <p>
+                Standby: <span className="text-white">{blueGreenInfo.standby_slot}</span>
+              </p>
+            )}
+          </div>
         ) : (
           <p className="mt-3 text-sm text-gray-500">Blue/Green 메타데이터를 수집하는 중입니다.</p>
         )}
@@ -450,12 +474,18 @@ export default function Page() {
           </div>
           {blueGreenInfo ? (
             <div className="mt-4 space-y-2 text-sm">
-              <p>Active Slot: <span className="text-white font-semibold">{blueGreenInfo.active_slot}</span></p>
-              <p>Standby Slot: <span className="text-white font-semibold">{blueGreenInfo.standby_slot || "N/A"}</span></p>
-              <p>
-                마지막 컷오버: {blueGreenInfo.last_cutover_at ? new Date(blueGreenInfo.last_cutover_at).toLocaleString("ko-KR") : "기록 없음"}
-              </p>
-              <p>다음 전환 예정: {blueGreenInfo.next_cutover_target || "미정"}</p>
+              {resolveSlotLabel(blueGreenInfo.active_slot) && (
+                <p>
+                  Active Slot: <span className="text-white font-semibold">{blueGreenInfo.active_slot}</span>
+                </p>
+              )}
+              {resolveSlotLabel(blueGreenInfo.standby_slot) && (
+                <p>
+                  Standby Slot: <span className="text-white font-semibold">{blueGreenInfo.standby_slot}</span>
+                </p>
+              )}
+              <p>마지막 컷오버: {blueGreenInfo.last_cutover_at ? formatKST(blueGreenInfo.last_cutover_at) : "기록 없음"}</p>
+              {resolveSlotLabel(blueGreenInfo.next_cutover_target) && <p>다음 전환 예정: {blueGreenInfo.next_cutover_target}</p>}
             </div>
           ) : (
             <p className="mt-4 text-sm text-gray-500">Blue/Green 메타데이터가 아직 없습니다.</p>

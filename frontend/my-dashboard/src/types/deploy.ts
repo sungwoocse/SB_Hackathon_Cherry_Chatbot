@@ -46,6 +46,7 @@ export interface DeployStatusResponse {
   risk_assessment?: Record<string, unknown> | null;
   llm_preview?: LLMPreview | null;
   blue_green_plan?: BlueGreenPlan | null;
+  timezone?: string | null;
 }
 
 export interface DeployPreviewResponse {
@@ -61,6 +62,7 @@ export interface DeployPreviewResponse {
   warnings: string[];
   task_context?: DeployTaskSummary | null;
   blue_green_plan?: BlueGreenPlan | null;
+  timezone?: string | null;
 }
 
 export interface RollbackRequest {
@@ -76,6 +78,7 @@ export interface DeployTimelineEntry {
   label: string;
   expected_seconds?: number | null;
   completed: boolean;
+  status?: string;
   metadata?: Record<string, unknown> | null;
 }
 
@@ -86,6 +89,8 @@ export interface DeployTaskSummary {
   action: "deploy" | "rollback";
   started_at: string;
   completed_at?: string | null;
+  actor?: string | null;
+  timezone?: string | null;
   summary?: Record<string, unknown> | null;
   failure_context?: Record<string, unknown> | null;
   metadata?: Record<string, unknown> | null;
