@@ -84,6 +84,8 @@ export default function Page() {
   const previewTimeline = previewDetail?.timeline_preview ?? [];
   const liveStages = Object.entries(currentStages || {});
   const llmSummary = previewDetail?.llm_preview?.summary ?? null;
+  const riskAssessment = previewDetail?.risk_assessment ?? null;
+  const costEstimate = previewDetail?.cost_estimate ?? null;
 
   const blueGreenInfo = useMemo<BlueGreenPlan | null>(() => {
     if (previewDetail?.blue_green_plan) return previewDetail.blue_green_plan;
@@ -301,6 +303,21 @@ export default function Page() {
     return directActor || authorName || authorEmail || summaryActor || metadataActor || "기록 없음";
   };
 
+  const formatInfoValue = (value: unknown): string => {
+    if (value === null || value === undefined) return "정보 없음";
+    if (Array.isArray(value)) {
+      return value.map((item) => (typeof item === "string" ? item : JSON.stringify(item))).join(", ");
+    }
+    if (typeof value === "object") {
+      try {
+        return JSON.stringify(value, null, 2);
+      } catch {
+        return String(value);
+      }
+    }
+    return String(value);
+  };
+
   const renderHero = () => {
     if (taskId) {
       return (
@@ -510,7 +527,41 @@ export default function Page() {
         </motion.div>
       </div>
 
-      <motion.div className="bg-gray-800 p-6 rounded-2xl border border-gray-800 mb-6" variants={cardVariants} initial="hidden" animate="visible" custom={4}>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <motion.div className="bg-gray-800 p-6 rounded-2xl border border-gray-800" variants={cardVariants} initial="hidden" animate="visible" custom={4}>
+          <p className="text-lg font-semibold">📉 Risk Assessment</p>
+          {riskAssessment ? (
+            <ul className="mt-4 space-y-3 text-sm">
+              {Object.entries(riskAssessment).map(([key, value]) => (
+                <li key={`risk-${key}`}>
+                  <p className="text-xs uppercase tracking-wide text-gray-500">{key}</p>
+                  <p className="text-gray-100 whitespace-pre-wrap">{formatInfoValue(value)}</p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-4 text-sm text-gray-500">위험 정보가 아직 없습니다.</p>
+          )}
+        </motion.div>
+
+        <motion.div className="bg-gray-800 p-6 rounded-2xl border border-gray-800" variants={cardVariants} initial="hidden" animate="visible" custom={5}>
+          <p className="text-lg font-semibold">💰 Cost Estimate</p>
+          {costEstimate ? (
+            <ul className="mt-4 space-y-3 text-sm">
+              {Object.entries(costEstimate).map(([key, value]) => (
+                <li key={`cost-${key}`}>
+                  <p className="text-xs uppercase tracking-wide text-gray-500">{key}</p>
+                  <p className="text-gray-100 whitespace-pre-wrap">{formatInfoValue(value)}</p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-4 text-sm text-gray-500">비용 추정치가 아직 생성되지 않았습니다.</p>
+          )}
+        </motion.div>
+      </div>
+
+      <motion.div className="bg-gray-800 p-6 rounded-2xl border border-gray-800 mb-6" variants={cardVariants} initial="hidden" animate="visible" custom={6}>
         <div className="flex items-center justify-between mb-3">
           <p className="text-lg font-semibold">📝 최근 작업</p>
           <button onClick={fetchRecent} className="text-xs px-2 py-1 bg-gray-700 rounded hover:bg-gray-600">
@@ -590,6 +641,32 @@ export default function Page() {
                     ))}
                   </ol>
                 </section>
+                {preflightData.risk_assessment && (
+                  <section>
+                    <p className="text-xs text-gray-500 mb-1">리스크 세부 정보</p>
+                    <ul className="space-y-2 bg-gray-950/60 p-3 rounded border border-gray-800 text-sm text-gray-200">
+                      {Object.entries(preflightData.risk_assessment).map(([key, value]) => (
+                        <li key={`preflight-riskdetail-${key}`}>
+                          <p className="text-xs uppercase tracking-wide text-gray-500">{key}</p>
+                          <p className="whitespace-pre-wrap">{formatInfoValue(value)}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+                {preflightData.cost_estimate && (
+                  <section>
+                    <p className="text-xs text-gray-500 mb-1">비용 추정</p>
+                    <ul className="space-y-2 bg-gray-950/60 p-3 rounded border border-gray-800 text-sm text-gray-200">
+                      {Object.entries(preflightData.cost_estimate).map(([key, value]) => (
+                        <li key={`preflight-cost-${key}`}>
+                          <p className="text-xs uppercase tracking-wide text-gray-500">{key}</p>
+                          <p className="whitespace-pre-wrap">{formatInfoValue(value)}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
                 <section>
                   <p className="text-xs text-gray-500 mb-1">Blue/Green 계획</p>
                   {preflightData.blue_green_plan ? (
