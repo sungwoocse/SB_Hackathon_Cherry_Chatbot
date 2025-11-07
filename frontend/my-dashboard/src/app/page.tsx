@@ -83,6 +83,7 @@ export default function Page() {
   const warnings = previewDetail?.warnings ?? [];
   const previewTimeline = previewDetail?.timeline_preview ?? [];
   const liveStages = Object.entries(currentStages || {});
+  const llmSummary = previewDetail?.llm_preview?.summary ?? null;
 
   const blueGreenInfo = useMemo<BlueGreenPlan | null>(() => {
     if (previewDetail?.blue_green_plan) return previewDetail.blue_green_plan;
