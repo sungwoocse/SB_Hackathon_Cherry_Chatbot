@@ -8,11 +8,13 @@ import { API_BASE_URL, JSON_HEADERS } from "@/lib/api";
 import type {
   BlueGreenPlan,
   DeployPreviewResponse,
-  DeployTaskSummary,
   DeployTaskLogResponse,
-  HealthStatusResponse,
+  DeployTaskSummary,
   DeployTimelineEntry,
+  HealthStatusResponse,
 } from "@/types/deploy";
+
+const CURRENT_TASK_STORAGE_KEY = "cherry.currentTaskId";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -23,6 +25,21 @@ interface DashboardState {
   status?: string;
   timestamp?: string;
 }
+
+const PROGRESS_BY_STATUS: Record<string, number> = {
+  pending: 12,
+  running_clone: 32,
+  running_build: 58,
+  running_cutover: 78,
+  running_observability: 92,
+  completed: 100,
+  failed: 100,
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.08 } }),
+};
 
 export default function Page() {
   const [state, setState] = useState<DashboardState>({ status: "READY" });
@@ -48,54 +65,35 @@ export default function Page() {
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
 
-  const costDisplay = useMemo(() => {
-    if (!previewDetail?.cost_estimate) return null;
-    return (
-      previewDetail.cost_estimate.hourly_cost ??
-      previewDetail.cost_estimate.total ??
-      previewDetail.cost_estimate.estimate ??
-      null
-    );
-  }, [previewDetail]);
+  const [preflightOpen, setPreflightOpen] = useState(false);
+  const [preflightLoading, setPreflightLoading] = useState(false);
+  const [preflightError, setPreflightError] = useState<string | null>(null);
+  const [preflightData, setPreflightData] = useState<DeployPreviewResponse | null>(null);
+  const [startingDeploy, setStartingDeploy] = useState(false);
 
-  const riskLabel = useMemo(() => {
-    return (
-      (previewDetail?.risk_assessment?.overall as string | undefined) ||
-      (previewDetail?.risk_assessment?.level as string | undefined) ||
-      "low"
-    );
-  }, [previewDetail]);
-
-  const llmPreview = previewDetail?.llm_preview;
-
-  const llmSummary = llmPreview?.summary ?? null;
-
-  const llmHighlights = llmPreview?.highlights ?? [];
-
-  const llmRisks = llmPreview?.risks ?? [];
-
+  const llmSummary = previewDetail?.llm_preview?.summary ?? null;
+  const llmHighlights = previewDetail?.llm_preview?.highlights ?? [];
+  const llmRisks = previewDetail?.llm_preview?.risks ?? [];
   const commandList = previewDetail?.commands ?? [];
 
-  const { blueGreenInfo, blueGreenSource } = useMemo(() => {
-    const summary = previewDetail?.task_context?.summary as { blue_green?: BlueGreenPlan } | undefined;
-    const fromPreview = previewDetail?.blue_green_plan ?? summary?.blue_green ?? null;
-    if (fromPreview) {
-      return { blueGreenInfo: fromPreview, blueGreenSource: "preview" as const };
+  const warnings = previewDetail?.warnings ?? [];
+  const previewTimeline = previewDetail?.timeline_preview ?? [];
+  const liveStages = Object.entries(currentStages || {});
+
+  const blueGreenInfo = useMemo<BlueGreenPlan | null>(() => {
+    if (previewDetail?.blue_green_plan) return previewDetail.blue_green_plan;
+    if (previewDetail?.task_context?.summary?.blue_green) {
+      return previewDetail.task_context.summary.blue_green as BlueGreenPlan;
     }
-    if (healthInfo?.blue_green) {
-      return { blueGreenInfo: healthInfo.blue_green, blueGreenSource: "healthz" as const };
-    }
-    return { blueGreenInfo: null, blueGreenSource: null };
+    return healthInfo?.blue_green ?? null;
   }, [previewDetail, healthInfo]);
 
-  const cardVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: (i: number) => ({
-      opacity: 1,
-      y: 0,
-      transition: { delay: i * 0.1 },
-    }),
-  };
+  const cardStatusColor =
+    state.status === "completed"
+      ? "text-green-400"
+      : state.status === "failed"
+      ? "text-red-400"
+      : "text-yellow-400";
 
   const fetchPreview = async (task?: string | null) => {
     try {
@@ -147,20 +145,58 @@ export default function Page() {
     }
   };
 
-  const handleDeploy = async () => {
-    if (deploying) return;
+  const persistTaskId = (value: string | null) => {
+    if (typeof window === "undefined") return;
+    if (value) {
+      window.sessionStorage.setItem(CURRENT_TASK_STORAGE_KEY, value);
+    } else {
+      window.sessionStorage.removeItem(CURRENT_TASK_STORAGE_KEY);
+    }
+  };
+
+  const handleOpenPreflight = async () => {
+    setPreflightOpen(true);
+    setPreflightLoading(true);
+    setPreflightError(null);
+    try {
+      const res = await api.get<DeployPreviewResponse>("/api/v1/preview", {
+        params: { mode: "preflight" },
+      });
+      setPreflightData(res.data);
+    } catch (err) {
+      console.error(err);
+      setPreflightError("프리뷰 정보를 불러오지 못했습니다.");
+    } finally {
+      setPreflightLoading(false);
+    }
+  };
+
+  const closePreflight = () => {
+    if (startingDeploy) return;
+    setPreflightOpen(false);
+    setPreflightData(null);
+    setPreflightError(null);
+  };
+
+  const confirmDeploy = async () => {
+    if (startingDeploy) return;
+    setStartingDeploy(true);
     setDeploying(true);
+    setError(null);
     setFailureInfo(null);
     try {
       const res = await api.post("/api/v1/deploy", { branch: "deploy" });
       setTaskId(res.data.task_id);
-      await fetchPreview(res.data.task_id);
+      persistTaskId(res.data.task_id);
       await fetchRecent();
-      setError(null);
-    } catch (err: any) {
+      setPreflightOpen(false);
+      setPreflightData(null);
+    } catch (err) {
       console.error(err);
       setError("배포 요청 실패");
       setDeploying(false);
+    } finally {
+      setStartingDeploy(false);
     }
   };
 
@@ -171,6 +207,7 @@ export default function Page() {
     try {
       const res = await api.post("/api/v1/rollback", { branch: "deploy" });
       setTaskId(res.data.task_id);
+      persistTaskId(res.data.task_id);
       await fetchRecent();
     } catch (err) {
       console.error(err);
@@ -212,6 +249,15 @@ export default function Page() {
   }, []);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.sessionStorage.getItem(CURRENT_TASK_STORAGE_KEY);
+    if (saved) {
+      setTaskId(saved);
+      setDeploying(true);
+    }
+  }, []);
+
+  useEffect(() => {
     if (!taskId) return;
     fetchPreview(taskId);
     fetchLogs(taskId);
@@ -221,175 +267,192 @@ export default function Page() {
     if (!taskId) return;
     const interval = setInterval(async () => {
       try {
-        const res = await api.get("/api/v1/status/" + taskId);
+        const res = await api.get(`/api/v1/status/${taskId}`);
         const payload = res.data;
-        setState((prev) => ({ ...prev, status: payload.status, timestamp: new Date().toISOString() }));
+        setState({ status: payload.status, timestamp: new Date().toISOString() });
         setCurrentStages(payload.stages || {});
         setFailureInfo(payload.failure_context || null);
         setLastUpdate(new Date().toLocaleTimeString());
         if (["completed", "failed"].includes(payload.status)) {
           setDeploying(false);
           setTaskId(null);
+          persistTaskId(null);
           fetchRecent();
+          fetchPreview();
           clearInterval(interval);
         }
       } catch (err) {
         console.error(err);
         setDeploying(false);
         setTaskId(null);
+        persistTaskId(null);
         clearInterval(interval);
       }
     }, 3000);
     return () => clearInterval(interval);
   }, [taskId]);
 
+  const heroProgress = PROGRESS_BY_STATUS[state.status || "pending"] ?? 8;
   const healthStatus = (healthInfo?.status || "확인 중").toUpperCase();
-  const warnings = previewDetail?.warnings ?? [];
-  const previewTimeline = previewDetail?.timeline_preview ?? [];
-  const liveStages = Object.entries(currentStages || {});
+  const showReloadNotice = Boolean(taskId);
 
-  const statusColor =
-    state.status === "completed"
-      ? "text-green-400"
-      : state.status === "failed"
-      ? "text-red-400"
-      : "text-yellow-400";
-
-  const riskColor =
-    riskLabel === "low"
-      ? "text-green-400"
-      : riskLabel === "high"
-      ? "text-red-400"
-      : "text-yellow-400";
-
-  if (loading)
-    return (
-      <div className="flex h-screen items-center justify-center text-gray-400">
-        ⏳ 데이터를 불러오는 중입니다...
-      </div>
-    );
-
-  return (
-    <motion.div
-      className="text-gray-200 p-8 min-h-screen bg-gray-900"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.6 }}
-    >
-      <motion.h2 className="text-3xl font-bold mb-2 text-blue-400">Cherry Deploy Dashboard</motion.h2>
-      <p className="text-gray-400 mb-6">마지막 업데이트: {lastUpdate}</p>
-
-      {error && (
-        <div className="mb-6 rounded border border-red-600 bg-red-900/30 px-4 py-2 text-sm text-red-200">
-          {error}
+  const renderHero = () => {
+    if (taskId) {
+      return (
+        <div className="bg-gray-800 rounded-2xl border border-gray-700 p-6 mb-8">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <p className="text-sm text-gray-400">현재 배포 Task</p>
+              <p className="text-2xl font-semibold text-white">{taskId}</p>
+            </div>
+            <p className={`text-lg font-semibold ${cardStatusColor}`}>
+              {(state.status || "진행 중").replace("running_", "RUNNING ").toUpperCase()}
+            </p>
+          </div>
+          <div className="mt-4 h-3 bg-gray-900 rounded-full overflow-hidden">
+            <div className="h-full bg-blue-500 transition-all" style={{ width: `${heroProgress}%` }} />
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            pending → running_clone → running_build → running_cutover → running_observability → completed
+          </p>
+          {blueGreenInfo && (
+            <p className="mt-4 text-sm text-gray-300">
+              Active Slot: <span className="text-white font-semibold">{blueGreenInfo.active_slot}</span> · Next Target: {blueGreenInfo.next_cutover_target || "미정"}
+            </p>
+          )}
         </div>
-      )}
+      );
+    }
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-6">
-        <motion.div className="bg-gray-800 p-6 rounded-lg shadow" variants={cardVariants} initial="hidden" animate="visible" custom={0}>
-          <p className="text-lg font-semibold">📦 배포 상태</p>
-          <p className={`mt-2 text-xl font-bold ${statusColor}`}>{state.status?.toUpperCase() || "N/A"}</p>
-          <div className="mt-4 flex gap-3">
+    return (
+      <div className="bg-gray-800 rounded-2xl border border-gray-700 p-6 mb-8">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <p className="text-sm text-gray-400">Cherry Deploy</p>
+            <p className="text-2xl font-semibold text-white">버튼 한 번으로 안전한 배포</p>
+          </div>
+          <div className="flex gap-2">
             <button
-              onClick={handleDeploy}
-              disabled={deploying}
-              className={`px-3 py-2 rounded text-sm ${deploying ? "bg-green-700 cursor-not-allowed opacity-60" : "bg-green-600 hover:bg-green-500"}`}
+              onClick={handleOpenPreflight}
+              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm font-semibold"
             >
-              {deploying ? "배포 중..." : "배포 시작"}
+              배포 준비
             </button>
             <button
               onClick={handleRollback}
               disabled={rollbacking}
-              className={`px-3 py-2 rounded text-sm ${rollbacking ? "bg-red-800 cursor-not-allowed opacity-60" : "bg-red-600 hover:bg-red-500"}`}
+              className={`px-4 py-2 rounded-lg border text-sm font-semibold ${rollbacking ? "border-gray-600 text-gray-400" : "border-red-500 text-red-300 hover:bg-red-500/10"}`}
             >
-              {rollbacking ? "롤백 중..." : "롤백"}
+              {rollbacking ? "롤백 중" : "롤백"}
             </button>
           </div>
-          <p className="mt-3 text-xs text-gray-400">현재 task: {taskId ?? "없음"}</p>
-        </motion.div>
-
-        <motion.div className="bg-gray-800 p-6 rounded-lg shadow" variants={cardVariants} initial="hidden" animate="visible" custom={1}>
-          <p className="text-lg font-semibold">💰 예상 비용</p>
-          <p className="mt-2 text-xl text-blue-300 font-bold">
-            {costDisplay !== null ? `$${costDisplay.toLocaleString()}` : "N/A"}
+        </div>
+        <p className="mt-4 text-gray-200 whitespace-pre-line">
+          {llmSummary || "최근 프리뷰 데이터를 불러오는 중입니다."}
+        </p>
+        {blueGreenInfo ? (
+          <p className="mt-3 text-sm text-gray-400">
+            Active Slot: <span className="text-white">{blueGreenInfo.active_slot}</span> · Standby: {blueGreenInfo.standby_slot || "N/A"}
           </p>
-        </motion.div>
+        ) : (
+          <p className="mt-3 text-sm text-gray-500">Blue/Green 메타데이터를 수집하는 중입니다.</p>
+        )}
+      </div>
+    );
+  };
 
-        <motion.div className="bg-gray-800 p-6 rounded-lg shadow" variants={cardVariants} initial="hidden" animate="visible" custom={2}>
-          <p className="text-lg font-semibold">⚙️ 리스크 수준</p>
-          <p className={`mt-2 text-xl font-bold ${riskColor}`}>{riskLabel?.toUpperCase()}</p>
-        </motion.div>
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-900 text-gray-400">
+        ⏳ 데이터를 불러오는 중입니다...
+      </div>
+    );
+  }
 
-        <motion.div className="bg-gray-800 p-6 rounded-lg shadow" variants={cardVariants} initial="hidden" animate="visible" custom={3}>
+  return (
+    <motion.div className="text-gray-200 p-6 md:p-8 min-h-screen bg-gray-900" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6 }}>
+      <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+        <motion.h2 className="text-3xl font-bold text-blue-400">Cherry Deploy Dashboard</motion.h2>
+        <p className="text-sm text-gray-400">마지막 업데이트: {lastUpdate || "-"}</p>
+      </div>
+
+      {error && (
+        <div className="mb-4 rounded border border-red-600 bg-red-900/30 px-4 py-3 text-sm text-red-200">{error}</div>
+      )}
+
+      {showReloadNotice && (
+        <div className="mb-4 rounded border border-yellow-600 bg-yellow-900/30 px-4 py-2 text-sm text-yellow-200">
+          dev 서버 재시작 중입니다. 화면이 자동으로 새로고침되어도 배포 작업은 계속 진행됩니다.
+        </div>
+      )}
+
+      {renderHero()}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <motion.div className="bg-gray-800 p-6 rounded-2xl border border-gray-800" variants={cardVariants} initial="hidden" animate="visible" custom={0}>
           <div className="flex items-center justify-between">
-            <p className="text-lg font-semibold">🩺 헬스 체크</p>
-            <button onClick={fetchHealth} className="text-xs px-2 py-1 bg-gray-700 rounded hover:bg-gray-600">
+            <p className="text-lg font-semibold">🛠 Preview Timeline</p>
+            <button onClick={() => fetchPreview(taskId)} className="text-xs px-2 py-1 bg-gray-700 rounded hover:bg-gray-600">
               새로고침
             </button>
           </div>
-          <p className={`mt-2 text-xl font-bold ${healthStatus === "HEALTHY" ? "text-green-400" : "text-yellow-400"}`}>
-            {healthStatus}
-          </p>
-          <p className="text-xs text-gray-400">마지막 점검: {healthCheckedAt || "-"}</p>
-          <div className="mt-3 text-xs space-y-1 text-gray-300">
-            {healthInfo?.pm2_processes &&
-              Object.entries(healthInfo.pm2_processes).map(([name, status]) => (
-                <p key={name}>
-                  {name}: <span className="text-white">{status}</span>
-                </p>
-              ))}
-            {healthInfo?.issues?.length ? (
-              <p className="text-red-300">⚠ {healthInfo.issues.join(", ")}</p>
-            ) : (
-              <p className="text-green-300">문제 없음</p>
-            )}
-          </div>
-        </motion.div>
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
-        <motion.div className="bg-gray-800 p-6 rounded-lg shadow" variants={cardVariants} initial="hidden" animate="visible" custom={4}>
-          <p className="text-lg font-semibold mb-3">🛠 Preview Timeline</p>
           {previewTimeline.length ? (
-            <ul className="space-y-2 text-sm">
+            <ul className="mt-4 space-y-2 text-sm">
               {previewTimeline.map((entry: DeployTimelineEntry) => (
                 <li key={entry.stage} className="flex items-start gap-2">
-                  <span className={entry.completed ? "text-green-400" : "text-gray-500"}>•</span>
+                  <span className={entry.completed ? "text-green-400" : "text-gray-600"}>•</span>
                   <div>
                     <p className="text-gray-100">{entry.label}</p>
-                    {entry.expected_seconds && (
-                      <p className="text-gray-400 text-xs">예상 {entry.expected_seconds}s</p>
+                    {entry.expected_seconds && <p className="text-xs text-gray-500">예상 {entry.expected_seconds}s</p>}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-4 text-sm text-gray-500">프리뷰 데이터를 불러오는 중입니다.</p>
+          )}
+        </motion.div>
+
+        <motion.div className="bg-gray-800 p-6 rounded-2xl border border-gray-800" variants={cardVariants} initial="hidden" animate="visible" custom={1}>
+          <p className="text-lg font-semibold">📡 실시간 Stage</p>
+          {liveStages.length ? (
+            <ul className="mt-4 space-y-2 text-sm">
+              {liveStages.map(([stage, details]) => (
+                <li key={stage} className="flex items-start gap-2">
+                  <span className="text-blue-400">•</span>
+                  <div>
+                    <p className="text-gray-100">{stage}</p>
+                    {details?.timestamp && (
+                      <p className="text-xs text-gray-500">{new Date(details.timestamp).toLocaleTimeString("ko-KR")}</p>
                     )}
                   </div>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-gray-400 text-sm">프리뷰 데이터를 불러오는 중입니다.</p>
+            <p className="mt-4 text-sm text-gray-500">진행 중인 Stage 정보가 없습니다.</p>
+          )}
+          {failureInfo && (
+            <div className="mt-4 text-xs text-red-200 bg-red-900/20 border border-red-700 rounded p-3 whitespace-pre-wrap">
+              {JSON.stringify(failureInfo, null, 2)}
+            </div>
           )}
         </motion.div>
+      </div>
 
-        <motion.div className="bg-gray-800 p-6 rounded-lg shadow" variants={cardVariants} initial="hidden" animate="visible" custom={5}>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <motion.div className="bg-gray-800 p-6 rounded-2xl border border-gray-800" variants={cardVariants} initial="hidden" animate="visible" custom={2}>
           <div className="flex items-center justify-between">
-            <p className="text-lg font-semibold">🧠 Gemini Preview</p>
-            <button
-              onClick={() => fetchPreview(taskId)}
-              className="text-xs px-2 py-1 bg-gray-700 rounded hover:bg-gray-600"
-            >
-              새로고침
-            </button>
+            <p className="text-lg font-semibold">💡 Gemini Preview</p>
+            <span className="text-xs text-gray-500">사전 점검</span>
           </div>
-          {llmSummary ? (
-            <p className="text-sm text-gray-200 mt-3 whitespace-pre-line">{llmSummary}</p>
-          ) : (
-            <p className="text-sm text-gray-400 mt-3">LLM 요약이 아직 준비되지 않았습니다.</p>
-          )}
+          <p className="mt-3 text-sm text-gray-200 whitespace-pre-line">{llmSummary || "LLM 요약이 아직 준비되지 않았습니다."}</p>
           {llmHighlights.length > 0 && (
             <div className="mt-4">
               <p className="text-xs text-gray-400 mb-1">하이라이트</p>
               <ul className="text-sm text-gray-100 list-disc list-inside space-y-1">
-                {llmHighlights.map((point, idx) => (
-                  <li key={`highlight-${idx}`}>{point}</li>
+                {llmHighlights.map((item, idx) => (
+                  <li key={`highlight-${idx}`}>{item}</li>
                 ))}
               </ul>
             </div>
@@ -398,155 +461,114 @@ export default function Page() {
             <div className="mt-4">
               <p className="text-xs text-gray-400 mb-1">위험 요소</p>
               <ul className="text-sm text-yellow-100 list-disc list-inside space-y-1">
-                {llmRisks.map((risk, idx) => (
-                  <li key={`risk-${idx}`}>{risk}</li>
+                {llmRisks.map((item, idx) => (
+                  <li key={`risk-${idx}`}>{item}</li>
                 ))}
               </ul>
             </div>
           )}
-          <div className="mt-4 border-t border-gray-700 pt-3">
-            <p className="text-sm text-gray-400 mb-2">실행 명령</p>
-            {commandList.length ? (
-              <ol className="text-xs text-gray-100 space-y-1 max-h-36 overflow-auto list-decimal list-inside">
+          {commandList.length > 0 && (
+            <div className="mt-4 border-t border-gray-700 pt-3">
+              <p className="text-xs text-gray-400 mb-1">실행 명령</p>
+              <ol className="text-xs space-y-1 list-decimal list-inside max-h-32 overflow-auto text-gray-200">
                 {commandList.map((cmd, idx) => (
-                  <li key={`cmd-${idx}`}>{cmd}</li>
+                  <li key={`command-${idx}`}>{cmd}</li>
                 ))}
               </ol>
-            ) : (
-              <p className="text-gray-500 text-sm">명령 정보가 아직 없습니다.</p>
-            )}
-          </div>
-        </motion.div>
-
-        <motion.div className="bg-gray-800 p-6 rounded-lg shadow" variants={cardVariants} initial="hidden" animate="visible" custom={6}>
-          <p className="text-lg font-semibold mb-3">📡 실시간 Stage</p>
-          {liveStages.length ? (
-            <ul className="space-y-2 text-sm">
-              {liveStages.map(([stage, details]) => (
-                <li key={stage} className="flex items-start gap-2">
-                  <span className="text-blue-400">•</span>
-                  <div>
-                    <p className="text-gray-100">{stage}</p>
-                    {details?.timestamp && (
-                      <p className="text-gray-400 text-xs">{new Date(details.timestamp).toLocaleTimeString()}</p>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-gray-400 text-sm">진행 중인 Stage 정보가 없습니다.</p>
-          )}
-          {failureInfo && (
-            <div className="mt-4 rounded border border-red-600 bg-red-900/20 p-3 text-xs text-red-200">
-              <p className="font-semibold mb-2">Failure Context</p>
-              <pre className="whitespace-pre-wrap">{JSON.stringify(failureInfo, null, 2)}</pre>
             </div>
           )}
         </motion.div>
-      </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
-        <motion.div className="bg-gray-800 p-6 rounded-lg shadow" variants={cardVariants} initial="hidden" animate="visible" custom={7}>
-          <p className="text-lg font-semibold mb-3">💠 Blue / Green 상태</p>
+        <motion.div className="bg-gray-800 p-6 rounded-2xl border border-gray-800" variants={cardVariants} initial="hidden" animate="visible" custom={3}>
+          <div className="flex items-center justify-between">
+            <p className="text-lg font-semibold">💠 Blue / Green 상태</p>
+            <button onClick={fetchHealth} className="text-xs px-2 py-1 bg-gray-700 rounded hover:bg-gray-600">
+              healthz 갱신
+            </button>
+          </div>
           {blueGreenInfo ? (
-            <div className="space-y-2 text-sm">
+            <div className="mt-4 space-y-2 text-sm">
+              <p>Active Slot: <span className="text-white font-semibold">{blueGreenInfo.active_slot}</span></p>
+              <p>Standby Slot: <span className="text-white font-semibold">{blueGreenInfo.standby_slot || "N/A"}</span></p>
               <p>
-                Active Slot: <span className="text-white font-semibold">{blueGreenInfo.active_slot ?? "정보 없음"}</span>
+                마지막 컷오버: {blueGreenInfo.last_cutover_at ? new Date(blueGreenInfo.last_cutover_at).toLocaleString("ko-KR") : "기록 없음"}
               </p>
-              <p>
-                Standby Slot: <span className="text-white font-semibold">{blueGreenInfo.standby_slot ?? "정보 없음"}</span>
-              </p>
-              <p>
-                마지막 컷오버:{" "}
-                <span className="text-white font-semibold">
-                  {blueGreenInfo.last_cutover_at
-                    ? new Date(blueGreenInfo.last_cutover_at).toLocaleString("ko-KR")
-                    : "기록 없음"}
-                </span>
-              </p>
-              {blueGreenInfo.next_cutover_target && (
-                <p>
-                  다음 전환 예정: <span className="text-white font-semibold">{blueGreenInfo.next_cutover_target}</span>
-                </p>
-              )}
-              <p className="text-xs text-gray-400">
-                데이터 출처: {blueGreenSource === "preview" ? "Preview API" : blueGreenSource === "healthz" ? "Healthz" : "수집 중"}
-              </p>
+              <p>다음 전환 예정: {blueGreenInfo.next_cutover_target || "미정"}</p>
             </div>
           ) : (
-            <p className="text-gray-400 text-sm">
-              Blue/Green 메타데이터를 불러오는 중입니다. healthz 또는 preview 응답에 `blue_green` 필드를 채워 주세요.
-            </p>
+            <p className="mt-4 text-sm text-gray-500">Blue/Green 메타데이터가 아직 없습니다.</p>
           )}
         </motion.div>
 
-        <motion.div className="bg-gray-800 p-6 rounded-lg shadow" variants={cardVariants} initial="hidden" animate="visible" custom={8}>
-          <p className="text-lg font-semibold mb-3">⚠ Preview Warnings</p>
+        <motion.div className="bg-gray-800 p-6 rounded-2xl border border-gray-800" variants={cardVariants} initial="hidden" animate="visible" custom={4}>
+          <p className="text-lg font-semibold">⚠ Preview Warnings</p>
           {warnings.length ? (
-            <ul className="list-disc list-inside text-sm text-yellow-200 space-y-1">
-              {warnings.map((w, idx) => (
-                <li key={idx}>{w}</li>
+            <ul className="mt-3 list-disc list-inside space-y-1 text-sm text-yellow-200">
+              {warnings.map((warn, idx) => (
+                <li key={`warn-${idx}`}>{warn}</li>
               ))}
             </ul>
           ) : (
-            <p className="text-gray-400 text-sm">특이사항 없음</p>
-          )}
-        </motion.div>
-
-        <motion.div className="bg-gray-800 p-6 rounded-lg shadow" variants={cardVariants} initial="hidden" animate="visible" custom={9}>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-lg font-semibold">📝 최근 작업</p>
-            <button onClick={fetchRecent} className="text-xs px-2 py-1 bg-gray-700 rounded hover:bg-gray-600">
-              새로고침
-            </button>
-          </div>
-          {recentTasks.length ? (
-            <ul className="space-y-2 text-sm">
-              {recentTasks.map((task) => (
-                <li key={task.task_id} className="rounded border border-gray-700 p-2">
-                  <p className="text-white">
-                    {task.action.toUpperCase()} · {task.branch}
-                  </p>
-                  <p className="text-gray-400 text-xs">
-                    {new Date(task.started_at).toLocaleString()} → {task.completed_at ? new Date(task.completed_at).toLocaleString() : "진행 중"}
-                  </p>
-                  <p className="text-gray-300 text-xs">status: {task.status}</p>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-gray-400 text-sm">최근 작업 내역이 없습니다.</p>
+            <p className="mt-3 text-sm text-gray-500">특이사항 없음</p>
           )}
         </motion.div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
-        <motion.div className="bg-gray-800 p-6 rounded-lg shadow" variants={cardVariants} initial="hidden" animate="visible" custom={10}>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-lg font-semibold">🧾 Task Logs</p>
-            <button
-              onClick={() => taskId && fetchLogs(taskId)}
-              disabled={!taskId || logLoading}
-              className={`text-xs px-2 py-1 rounded ${
-                !taskId || logLoading ? "bg-gray-700 cursor-not-allowed" : "bg-gray-700 hover:bg-gray-600"
-              }`}
-            >
-              새로고침
-            </button>
-          </div>
-          {taskLogs ? (
-            <pre className="text-xs text-gray-200 bg-gray-900 rounded p-3 max-h-64 overflow-auto">
-              {JSON.stringify(taskLogs.stages, null, 2)}
-            </pre>
-          ) : (
-            <p className="text-gray-400 text-sm">활성 task 로그가 없습니다.</p>
-          )}
+      <motion.div className="bg-gray-800 p-6 rounded-2xl border border-gray-800 mb-6" variants={cardVariants} initial="hidden" animate="visible" custom={5}>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-lg font-semibold">📝 최근 작업</p>
+          <button onClick={fetchRecent} className="text-xs px-2 py-1 bg-gray-700 rounded hover:bg-gray-600">
+            새로고침
+          </button>
+        </div>
+        {recentTasks.length ? (
+          <ul className="space-y-3 text-sm">
+            {recentTasks.map((task) => (
+              <li key={task.task_id} className="rounded border border-gray-700 p-3 bg-gray-900/30">
+                <p className="text-white font-semibold">
+                  {task.action.toUpperCase()} · {task.branch}
+                </p>
+                <p className="text-xs text-gray-400">
+                  {new Date(task.started_at).toLocaleString()} → {task.completed_at ? new Date(task.completed_at).toLocaleString() : "진행 중"}
+                </p>
+                <p className="text-xs text-gray-300">status: {task.status}</p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-gray-500">최근 작업 내역이 없습니다.</p>
+        )}
+      </motion.div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <motion.div className="bg-gray-800 p-6 rounded-2xl border border-gray-800" variants={cardVariants} initial="hidden" animate="visible" custom={6}>
+          <details className="group" open={Boolean(taskLogs)}>
+            <summary className="flex items-center justify-between cursor-pointer text-lg font-semibold">
+              🧾 Task Logs
+              <span className="text-xs text-gray-500">펼치기</span>
+            </summary>
+            <div className="mt-3">
+              <button
+                onClick={() => taskId && fetchLogs(taskId)}
+                disabled={!taskId || logLoading}
+                className={`text-xs px-2 py-1 rounded ${!taskId || logLoading ? "bg-gray-700 cursor-not-allowed" : "bg-gray-700 hover:bg-gray-600"}`}
+              >
+                새로고침
+              </button>
+              {taskLogs ? (
+                <pre className="text-xs text-gray-200 bg-gray-900 rounded p-3 mt-3 max-h-64 overflow-auto">
+                  {JSON.stringify(taskLogs.stages, null, 2)}
+                </pre>
+              ) : (
+                <p className="text-sm text-gray-500 mt-3">활성 task 로그가 없습니다.</p>
+              )}
+            </div>
+          </details>
         </motion.div>
 
-        <motion.div className="bg-gray-800 p-6 rounded-lg shadow" variants={cardVariants} initial="hidden" animate="visible" custom={11}>
+        <motion.div className="bg-gray-800 p-6 rounded-2xl border border-gray-800" variants={cardVariants} initial="hidden" animate="visible" custom={7}>
           <p className="text-lg font-semibold mb-2">💬 Chat Ops</p>
-          <p className="text-sm text-gray-400 mb-4">백엔드 챗봇 API에 직접 질문해 배포 상황을 설명받을 수 있어요.</p>
+          <p className="text-sm text-gray-400 mb-4">백엔드 챗봇 API에 질문해 배포 상황을 설명받을 수 있어요.</p>
           <textarea
             value={chatInput}
             onChange={(e) => setChatInput(e.target.value)}
@@ -558,9 +580,7 @@ export default function Page() {
             onClick={handleChatSend}
             disabled={chatLoading || !chatInput.trim()}
             className={`mt-3 w-full py-2 rounded text-sm ${
-              chatLoading || !chatInput.trim()
-                ? "bg-blue-900 text-blue-200 cursor-not-allowed"
-                : "bg-blue-600 hover:bg-blue-500 text-white"
+              chatLoading || !chatInput.trim() ? "bg-blue-900 text-blue-200 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-500 text-white"
             }`}
           >
             {chatLoading ? "질문 중..." : "Gemini에게 물어보기"}
@@ -575,6 +595,83 @@ export default function Page() {
       </div>
 
       <ChatWidget />
+
+      {preflightOpen && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[10000] p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-3xl p-6 relative">
+            <button
+              onClick={closePreflight}
+              className="absolute top-3 right-3 text-gray-400 hover:text-white"
+              aria-label="close"
+              disabled={startingDeploy}
+            >
+              ✕
+            </button>
+            <h3 className="text-2xl font-semibold text-white mb-2">배포 사전 브리핑</h3>
+            <p className="text-sm text-gray-400 mb-4">변경 요약과 위험 요소를 검토한 뒤 실제 배포를 진행하세요.</p>
+            {preflightLoading ? (
+              <p className="text-sm text-gray-400">Gemini 프리뷰를 불러오는 중...</p>
+            ) : preflightError ? (
+              <p className="text-sm text-red-400">{preflightError}</p>
+            ) : preflightData ? (
+              <div className="space-y-4 max-h-[60vh] overflow-auto pr-1">
+                <section>
+                  <p className="text-xs text-gray-500 mb-1">변경 요약</p>
+                  <p className="text-gray-100 whitespace-pre-line">{preflightData.llm_preview?.summary || "LLM 요약이 없습니다."}</p>
+                </section>
+                {preflightData.llm_preview?.risks?.length ? (
+                  <section>
+                    <p className="text-xs text-gray-500 mb-1">위험 요소</p>
+                    <ul className="list-disc list-inside text-sm text-yellow-200 space-y-1">
+                      {preflightData.llm_preview.risks.map((item, idx) => (
+                        <li key={`preflight-risk-${idx}`}>{item}</li>
+                      ))}
+                    </ul>
+                  </section>
+                ) : null}
+                <section>
+                  <p className="text-xs text-gray-500 mb-1">실행 명령</p>
+                  <ol className="list-decimal list-inside text-xs text-gray-100 space-y-1 bg-gray-950/60 p-3 rounded border border-gray-800">
+                    {(preflightData.commands || []).map((cmd, idx) => (
+                      <li key={`preflight-cmd-${idx}`}>{cmd}</li>
+                    ))}
+                  </ol>
+                </section>
+                <section>
+                  <p className="text-xs text-gray-500 mb-1">Blue/Green 계획</p>
+                  {preflightData.blue_green_plan ? (
+                    <div className="text-sm text-gray-200 space-y-1">
+                      <p>Active Slot: {preflightData.blue_green_plan.active_slot}</p>
+                      <p>다음 전환: {preflightData.blue_green_plan.next_cutover_target || "미정"}</p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">계획 정보가 없습니다.</p>
+                  )}
+                </section>
+                <section className="rounded bg-yellow-900/20 border border-yellow-700 p-3 text-sm text-yellow-100">
+                  dev 서버를 재기동하므로 화면이 잠시 리셋될 수 있습니다. 현재 창을 닫아도 배포는 계속 진행됩니다.
+                </section>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">프리뷰 데이터를 가져오지 못했습니다.</p>
+            )}
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={closePreflight} disabled={startingDeploy} className="px-4 py-2 rounded border border-gray-600 text-gray-200 hover:bg-gray-800">
+                취소
+              </button>
+              <button
+                onClick={confirmDeploy}
+                disabled={preflightLoading || startingDeploy}
+                className={`px-4 py-2 rounded text-white font-semibold ${
+                  preflightLoading || startingDeploy ? "bg-blue-900 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-500"
+                }`}
+              >
+                {startingDeploy ? "배포 시작 중..." : "실제 배포"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }
