@@ -80,9 +80,6 @@ export default function Page() {
   const [chatVisible, setChatVisible] = useState(false);
 
   const llmSummary = previewDetail?.llm_preview?.summary ?? null;
-  const llmHighlights = previewDetail?.llm_preview?.highlights ?? [];
-  const llmRisks = previewDetail?.llm_preview?.risks ?? [];
-  const commandList = previewDetail?.commands ?? [];
 
   const warnings = previewDetail?.warnings ?? [];
   const previewTimeline = previewDetail?.timeline_preview ?? [];
@@ -440,46 +437,8 @@ export default function Page() {
         </motion.div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <motion.div className="bg-gray-800 p-6 rounded-2xl border border-gray-800" variants={cardVariants} initial="hidden" animate="visible" custom={2}>
-          <div className="flex items-center justify-between">
-            <p className="text-lg font-semibold">💡 Gemini Preview</p>
-            <span className="text-xs text-gray-500">사전 점검</span>
-          </div>
-          <p className="mt-3 text-sm text-gray-200 whitespace-pre-line">{llmSummary || "LLM 요약이 아직 준비되지 않았습니다."}</p>
-          {llmHighlights.length > 0 && (
-            <div className="mt-4">
-              <p className="text-xs text-gray-400 mb-1">하이라이트</p>
-              <ul className="text-sm text-gray-100 list-disc list-inside space-y-1">
-                {llmHighlights.map((item, idx) => (
-                  <li key={`highlight-${idx}`}>{item}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {llmRisks.length > 0 && (
-            <div className="mt-4">
-              <p className="text-xs text-gray-400 mb-1">위험 요소</p>
-              <ul className="text-sm text-yellow-100 list-disc list-inside space-y-1">
-                {llmRisks.map((item, idx) => (
-                  <li key={`risk-${idx}`}>{item}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {commandList.length > 0 && (
-            <div className="mt-4 border-t border-gray-700 pt-3">
-              <p className="text-xs text-gray-400 mb-1">실행 명령</p>
-              <ol className="text-xs space-y-1 list-decimal list-inside max-h-32 overflow-auto text-gray-200">
-                {commandList.map((cmd, idx) => (
-                  <li key={`command-${idx}`}>{cmd}</li>
-                ))}
-              </ol>
-            </div>
-          )}
-        </motion.div>
-
-        <motion.div className="bg-gray-800 p-6 rounded-2xl border border-gray-800" variants={cardVariants} initial="hidden" animate="visible" custom={3}>
           <div className="flex items-center justify-between">
             <p className="text-lg font-semibold">💠 Blue / Green 상태</p>
             <button onClick={fetchHealth} className="text-xs px-2 py-1 bg-gray-700 rounded hover:bg-gray-600">
@@ -500,7 +459,7 @@ export default function Page() {
           )}
         </motion.div>
 
-        <motion.div className="bg-gray-800 p-6 rounded-2xl border border-gray-800" variants={cardVariants} initial="hidden" animate="visible" custom={4}>
+        <motion.div className="bg-gray-800 p-6 rounded-2xl border border-gray-800" variants={cardVariants} initial="hidden" animate="visible" custom={3}>
           <p className="text-lg font-semibold">⚠ Preview Warnings</p>
           {warnings.length ? (
             <ul className="mt-3 list-disc list-inside space-y-1 text-sm text-yellow-200">
@@ -514,7 +473,7 @@ export default function Page() {
         </motion.div>
       </div>
 
-      <motion.div className="bg-gray-800 p-6 rounded-2xl border border-gray-800 mb-6" variants={cardVariants} initial="hidden" animate="visible" custom={5}>
+      <motion.div className="bg-gray-800 p-6 rounded-2xl border border-gray-800 mb-6" variants={cardVariants} initial="hidden" animate="visible" custom={4}>
         <div className="flex items-center justify-between mb-3">
           <p className="text-lg font-semibold">📝 최근 작업</p>
           <button onClick={fetchRecent} className="text-xs px-2 py-1 bg-gray-700 rounded hover:bg-gray-600">
