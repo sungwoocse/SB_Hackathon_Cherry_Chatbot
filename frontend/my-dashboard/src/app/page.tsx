@@ -394,21 +394,21 @@ export default function Page() {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <p className="text-sm text-gray-400">Cherry Deploy</p>
-            <p className="text-2xl font-semibold text-white">버튼 한 번으로 안전한 배포</p>
+            <p className="text-2xl font-semibold text-white">Safe Deployment with a Single Click</p>
           </div>
           <div className="flex gap-2">
             <button
               onClick={handleOpenPreflight}
               className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm font-semibold"
             >
-              배포 준비
+              Prepare Deploy
             </button>
             <button
               onClick={handleRollback}
               disabled={rollbacking}
               className={`px-4 py-2 rounded-lg border text-sm font-semibold ${rollbacking ? "border-gray-600 text-gray-400" : "border-red-500 text-red-300 hover:bg-red-500/10"}`}
             >
-              {rollbacking ? "롤백 중" : "롤백"}
+              {rollbacking ? "Rolling Back..." : "Rollback"}
             </button>
           </div>
         </div>
@@ -520,7 +520,7 @@ export default function Page() {
         </motion.div>
 
         <motion.div className="bg-gray-800 p-6 rounded-2xl border border-gray-800" variants={cardVariants} initial="hidden" animate="visible" custom={1}>
-          <p className="text-lg font-semibold">📡 실시간 Stage</p>
+          <p className="text-lg font-semibold">📡 Live Stages</p>
           {liveStages.length ? (
             <ul className="mt-4 space-y-2 text-sm">
               {liveStages.map(([stage, details]) => {
@@ -614,7 +614,7 @@ export default function Page() {
 
       <motion.div className="bg-gray-800 p-6 rounded-2xl border border-gray-800 mb-6" variants={cardVariants} initial="hidden" animate="visible" custom={5}>
         <div className="flex items-center justify-between mb-3">
-          <p className="text-lg font-semibold">📝 최근 작업</p>
+          <p className="text-lg font-semibold">📝 Recent Tasks</p>
           <button onClick={fetchRecent} className="text-xs px-2 py-1 bg-gray-700 rounded hover:bg-gray-600">
             새로고침
           </button>
