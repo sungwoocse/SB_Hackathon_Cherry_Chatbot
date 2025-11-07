@@ -1,16 +1,15 @@
+"use client";
 import { useState } from "react";
-import App from "../App";
+import ChatApp from "../src/app/components/ChatApp";
 
 /**
- * 오른쪽 아래 플로팅 버튼 → 팝업 형태로 챗봇을 띄웁니다.
- * 다른 레이아웃의 영향을 받지 않도록 fixed 포지션만 사용합니다.
+ * Legacy floating chat launcher preserved for future reference.
  */
-export default function ChatWidget() {
+export default function LegacyChatPopup() {
   const [open, setOpen] = useState(false);
 
   return (
     <>
-      {/* 플로팅 버튼 */}
       <button
         onClick={() => setOpen(true)}
         style={{
@@ -26,21 +25,19 @@ export default function ChatWidget() {
           cursor: "pointer",
           fontSize: 22,
           boxShadow: "0 10px 24px rgba(0,0,0,.35)",
-          zIndex: 9999
+          zIndex: 9999,
         }}
-        title="챗봇 열기"
+        title="챗봇 열기 (Legacy)"
       >
         💬
       </button>
-
-      {/* 팝업 */}
       {open && (
         <div
           style={{
             position: "fixed",
-            bottom: 88,      // 버튼 위로 살짝
+            bottom: 88,
             right: 20,
-            width: 320,      // 요청하신 '작은' 사이즈
+            width: 320,
             height: 440,
             background: "var(--panel)",
             border: `1px solid var(--border)`,
@@ -50,10 +47,9 @@ export default function ChatWidget() {
             display: "flex",
             flexDirection: "column",
             overflow: "hidden",
-            animation: "fadeIn .18s ease-out"
+            animation: "fadeIn .18s ease-out",
           }}
         >
-          {/* 헤더 */}
           <div
             style={{
               display: "flex",
@@ -63,7 +59,7 @@ export default function ChatWidget() {
               background: "var(--panel-2)",
               borderBottom: `1px solid var(--border)`,
               fontWeight: 600,
-              fontSize: 14
+              fontSize: 14,
             }}
           >
             일단만들어 챗봇
@@ -75,16 +71,14 @@ export default function ChatWidget() {
                 border: "none",
                 color: "var(--text)",
                 fontSize: 18,
-                cursor: "pointer"
+                cursor: "pointer",
               }}
             >
               ×
             </button>
           </div>
-
-          {/* 본문 (채팅 앱) */}
           <div style={{ flex: 1, overflow: "hidden" }}>
-            <App />
+            <ChatApp />
           </div>
         </div>
       )}

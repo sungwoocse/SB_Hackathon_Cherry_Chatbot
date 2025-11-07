@@ -2,6 +2,10 @@
 import { useState, useEffect, useRef } from "react";
 import "./ChatStyles.css";
 
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
+  "https://delight.13-125-116-92.nip.io";
+
 interface Message {
   sender: "user" | "bot";
   text: string;
@@ -30,11 +34,14 @@ export default function ChatApp() {
     setInput("");
 
     try {
-      const res = await fetch("/api/chat", {
+      const res = await fetch(`${API_BASE}/api/v1/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: input }),
       });
+      if (!res.ok) {
+        throw new Error("서버 응답 실패");
+      }
       const data = await res.json();
 
       let i = 0;

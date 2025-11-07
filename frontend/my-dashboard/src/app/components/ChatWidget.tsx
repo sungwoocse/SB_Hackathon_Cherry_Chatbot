@@ -2,12 +2,17 @@
 import { useEffect, useRef, useState } from "react";
 import Character from "./Character";
 
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
+  "https://delight.13-125-116-92.nip.io";
+
 export default function ChatWidget() {
   const [status, setStatus] = useState<"idle" | "talking" | "success" | "failed">("idle");
   const [messages, setMessages] = useState<{ sender: "user" | "bot"; text: string }[]>([
     { sender: "bot", text: "안녕하세요! 무엇을 도와드릴까요?" },
   ]);
   const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
   const [open, setOpen] = useState(true); // 팝업 토글
   const endRef = useRef<HTMLDivElement | null>(null);
 
@@ -16,24 +21,52 @@ export default function ChatWidget() {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, open]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const text = input.trim();
-    if (!text) return;
+    if (!text || sending) return;
 
     // 사용자 메시지
     setMessages((prev) => [...prev, { sender: "user", text }]);
     setInput("");
     setStatus("talking");
+    setSending(true);
 
-    // 데모 응답 (Gemini 연동 전 임시)
-    setTimeout(() => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text }),
+      });
+      if (!res.ok) {
+        throw new Error("불러오기 실패");
+      }
+      const data = await res.json();
+      const reply = data.reply || "응답이 비어있어요.";
+
+      let i = 0;
+      const botMsg = { sender: "bot" as const, text: "" };
+      setMessages((prev) => [...prev, botMsg]);
+      const interval = setInterval(() => {
+        if (i < reply.length) {
+          botMsg.text += reply[i];
+          setMessages((prev) => [...prev.slice(0, -1), { ...botMsg }]);
+          i++;
+        } else {
+          clearInterval(interval);
+        }
+      }, 25);
+      setStatus("success");
+    } catch (err) {
+      console.error(err);
       setMessages((prev) => [
         ...prev,
-        { sender: "bot", text: "Gemini 연결 준비 완료 상태입니다." },
+        { sender: "bot", text: "⚠️ 서버 연결에 실패했습니다." },
       ]);
-      setStatus("success");
+      setStatus("failed");
+    } finally {
       setTimeout(() => setStatus("idle"), 1200);
-    }, 900);
+      setSending(false);
+    }
   };
 
   return (
@@ -97,9 +130,12 @@ export default function ChatWidget() {
               />
               <button
                 onClick={handleSend}
-                className="px-3 py-2 text-sm rounded-md bg-blue-600 hover:bg-blue-700 text-white transition shadow"
+                disabled={sending}
+                className={`px-3 py-2 text-sm rounded-md text-white transition shadow ${
+                  sending ? "bg-blue-900 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+                }`}
               >
-                전송
+                {sending ? "전송 중..." : "전송"}
               </button>
             </div>
           </div>
