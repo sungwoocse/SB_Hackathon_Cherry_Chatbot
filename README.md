@@ -1,4 +1,4 @@
-# 🍒 Cherry Chatbot Dashboard
+# 🍒 Cherry Chatbot Dashboard (가제)
 
 SoftBank Hackathon 2025 (Team Cherry) - DevOps Deployment Dashboard with AI Chatbot
 
