@@ -88,6 +88,7 @@ export interface DeployTaskSummary {
   completed_at?: string | null;
   summary?: Record<string, unknown> | null;
   failure_context?: Record<string, unknown> | null;
+  metadata?: Record<string, unknown> | null;
 }
 
 export interface DeployTaskLogResponse {

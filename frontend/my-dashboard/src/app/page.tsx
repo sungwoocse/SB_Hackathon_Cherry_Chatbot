@@ -50,6 +50,12 @@ type TaskSummaryData = {
   actor?: string | null;
 };
 
+type TaskMetadata = {
+  actor?: string | null;
+  requested_by?: string | null;
+  trigger?: string | null;
+};
+
 export default function Page() {
   const [state, setState] = useState<DashboardState>({ status: "READY" });
   const [loading, setLoading] = useState(true);
@@ -71,6 +77,7 @@ export default function Page() {
   const [preflightError, setPreflightError] = useState<string | null>(null);
   const [preflightData, setPreflightData] = useState<DeployPreviewResponse | null>(null);
   const [startingDeploy, setStartingDeploy] = useState(false);
+  const [chatVisible, setChatVisible] = useState(false);
 
   const llmSummary = previewDetail?.llm_preview?.summary ?? null;
   const llmHighlights = previewDetail?.llm_preview?.highlights ?? [];
@@ -266,17 +273,27 @@ export default function Page() {
 
   const formatKST = (value?: string | null) => {
     if (!value) return "정보 없음";
-    return new Date(value).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
+    const formatter = new Intl.DateTimeFormat("ko-KR", {
+      timeZone: "Asia/Seoul",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true,
+    });
+    return `${formatter.format(new Date(value))} (KST)`;
   };
 
-  const resolveActor = (summary?: TaskSummaryData | null) => {
-    if (!summary) return "알 수 없음";
-    const authorName = summary.git_commit?.author?.name;
-    const authorEmail = summary.git_commit?.author?.email;
-    if (authorName) return authorName;
-    if (authorEmail) return authorEmail;
-    if (summary.actor) return summary.actor;
-    return "알 수 없음";
+  const resolveActor = (task: DeployTaskSummary) => {
+    const summary = task.summary as TaskSummaryData | undefined;
+    const metadata = task.metadata as TaskMetadata | undefined;
+    const authorName = summary?.git_commit?.author?.name;
+    const authorEmail = summary?.git_commit?.author?.email;
+    const summaryActor = summary?.actor;
+    const metadataActor = metadata?.actor || metadata?.requested_by || metadata?.trigger;
+    return authorName || authorEmail || summaryActor || metadataActor || "기록 없음";
   };
 
   const renderHero = () => {
@@ -514,7 +531,7 @@ export default function Page() {
                 <p className="text-xs text-gray-400">
                   {formatKST(task.started_at)} → {task.completed_at ? formatKST(task.completed_at) : "진행 중"}
                 </p>
-                <p className="text-xs text-gray-300">status: {task.status} · actor: {resolveActor(task.summary as TaskSummaryData | undefined)}</p>
+                <p className="text-xs text-gray-300">status: {task.status} · actor: {resolveActor(task)}</p>
               </li>
             ))}
           </ul>
@@ -523,7 +540,18 @@ export default function Page() {
         )}
       </motion.div>
 
-      <ChatWidget />
+      {chatVisible && <ChatWidget onClose={() => setChatVisible(false)} />}
+      {!chatVisible && (
+        <button
+          type="button"
+          onClick={() => setChatVisible(true)}
+          className="fixed bottom-6 right-6 z-[9000] bg-blue-600 hover:bg-blue-500 text-white rounded-full shadow-xl w-16 h-16 flex flex-col items-center justify-center gap-1"
+          aria-label="챗봇 열기"
+        >
+          <span className="text-2xl">🤖</span>
+          <span className="text-[10px] tracking-tight font-semibold">Chatbot</span>
+        </button>
+      )}
 
       {preflightOpen && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[10000] p-4">

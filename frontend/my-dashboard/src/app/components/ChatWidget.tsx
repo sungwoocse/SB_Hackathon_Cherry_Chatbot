@@ -3,20 +3,23 @@ import { useEffect, useRef, useState } from "react";
 import Character from "./Character";
 import { API_BASE_URL, JSON_HEADERS } from "@/lib/api";
 
-export default function ChatWidget() {
+interface ChatWidgetProps {
+  onClose?: () => void;
+}
+
+export default function ChatWidget({ onClose }: ChatWidgetProps) {
   const [status, setStatus] = useState<"idle" | "talking" | "success" | "failed">("idle");
   const [messages, setMessages] = useState<{ sender: "user" | "bot"; text: string }[]>([
     { sender: "bot", text: "안녕하세요! 무엇을 도와드릴까요?" },
   ]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
-  const [open, setOpen] = useState(true); // 팝업 토글
   const endRef = useRef<HTMLDivElement | null>(null);
 
   // ✅ 새 메시지마다 하단으로 스크롤
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, open]);
+  }, [messages]);
 
   const handleSend = async () => {
     const text = input.trim();
@@ -66,6 +69,10 @@ export default function ChatWidget() {
     }
   };
 
+  const handleClose = () => {
+    onClose?.();
+  };
+
   return (
     <>
       {/* ✅ 캐릭터 (왼쪽 하단 고정, 상태 유지) */}
@@ -73,22 +80,21 @@ export default function ChatWidget() {
 
       {/* ✅ 우측 하단 챗봇 팝업 (디자인 복원) */}
       <div className="fixed bottom-6 right-6 z-[9999] pointer-events-auto select-none">
-        {open ? (
-          <div className="w-80 h-100 rounded-xl shadow-2xl border border-[#2c3d55] overflow-hidden animate-fade-in">
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 py-2 bg-[#223145] text-blue-200 border-b border-[#2c3d55]">
-              <div className="font-semibold flex items-center gap-2">
-                <span className="text-lg">🤖</span>
-                <span>Chatbot</span>
-              </div>
-              <button
-                onClick={() => setOpen(false)}
-                className="text-gray-300 hover:text-white transition"
-                aria-label="닫기"
-              >
-                ✕
-              </button>
+        <div className="w-80 h-100 rounded-xl shadow-2xl border border-[#2c3d55] overflow-hidden animate-fade-in">
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-2 bg-[#223145] text-blue-200 border-b border-[#2c3d55]">
+            <div className="font-semibold flex items-center gap-2">
+              <span className="text-lg">🤖</span>
+              <span>Chatbot</span>
             </div>
+            <button
+              onClick={handleClose}
+              className="text-gray-300 hover:text-white transition"
+              aria-label="닫기"
+            >
+              ✕
+            </button>
+          </div>
 {/* Body */}
 <div className="h-[calc(24rem-2.5rem-3.25rem)] bg-[#1e2a3a] text-white p-3 overflow-y-auto space-y-2">
   {messages.map((m, i) => (
@@ -135,16 +141,7 @@ export default function ChatWidget() {
                 {sending ? "전송 중..." : "전송"}
               </button>
             </div>
-          </div>
-        ) : (
-          // 토글 버튼 (닫힌 상태)
-          <button
-            onClick={() => setOpen(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full shadow-lg transition"
-          >
-            💬 Chat
-          </button>
-        )}
+        </div>
       </div>
 
       {/* fade-in 애니메이션 */}
