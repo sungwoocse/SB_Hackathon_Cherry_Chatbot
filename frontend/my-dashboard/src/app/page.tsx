@@ -358,7 +358,10 @@ export default function Page() {
             </button>
           </div>
         </div>
-        <p className="mt-4 text-gray-200">&quot;배포 준비&quot; 버튼을 눌러 최신 변경 요약과 위험 요소를 확인한 뒤 실제 배포를 실행하세요.</p>
+
+        <p className="mt-4 text-gray-200 whitespace-pre-line">
+          {llmSummary || "배포 준비” 버튼을 눌러 최신 변경 요약과 위험 요소를 확인한 뒤 실제 배포를 실행하세요."}
+        </p>
         {blueGreenInfo ? (
           <div className="mt-3 text-sm text-gray-400 space-y-1">
             {resolveSlotLabel(blueGreenInfo.active_slot) ? (
