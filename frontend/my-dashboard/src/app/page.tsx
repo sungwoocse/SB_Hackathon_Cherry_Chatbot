@@ -48,17 +48,16 @@ export default function Page() {
   const [lastUpdate, setLastUpdate] = useState<string>("");
 
   const [taskId, setTaskId] = useState<string | null>(null);
-  const [deploying, setDeploying] = useState(false);
+  const [, setDeploying] = useState(false);
   const [rollbacking, setRollbacking] = useState(false);
 
   const [previewDetail, setPreviewDetail] = useState<DeployPreviewResponse | null>(null);
   const [healthInfo, setHealthInfo] = useState<HealthStatusResponse | null>(null);
-  const [healthCheckedAt, setHealthCheckedAt] = useState<string>("");
   const [recentTasks, setRecentTasks] = useState<DeployTaskSummary[]>([]);
   const [taskLogs, setTaskLogs] = useState<DeployTaskLogResponse | null>(null);
   const [logLoading, setLogLoading] = useState(false);
-  const [failureInfo, setFailureInfo] = useState<Record<string, any> | null>(null);
-  const [currentStages, setCurrentStages] = useState<Record<string, Record<string, any>>>({});
+  const [failureInfo, setFailureInfo] = useState<Record<string, unknown> | null>(null);
+  const [currentStages, setCurrentStages] = useState<Record<string, Record<string, unknown>>>({});
 
   const [chatInput, setChatInput] = useState("");
   const [chatReply, setChatReply] = useState<string | null>(null);
@@ -114,11 +113,9 @@ export default function Page() {
     try {
       const res = await api.get<HealthStatusResponse>("/healthz");
       setHealthInfo(res.data);
-      setHealthCheckedAt(new Date().toLocaleTimeString());
     } catch (err) {
       console.error(err);
       setHealthInfo(null);
-      setHealthCheckedAt(new Date().toLocaleTimeString());
     }
   };
 
@@ -293,7 +290,6 @@ export default function Page() {
   }, [taskId]);
 
   const heroProgress = PROGRESS_BY_STATUS[state.status || "pending"] ?? 8;
-  const healthStatus = (healthInfo?.status || "확인 중").toUpperCase();
   const showReloadNotice = Boolean(taskId);
 
   const renderHero = () => {

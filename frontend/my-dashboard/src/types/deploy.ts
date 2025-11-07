@@ -29,21 +29,21 @@ export interface DeployResponse {
   action: "deploy" | "rollback";
   queued_at: string;
   estimated_duration_minutes: number;
-  context: Record<string, any>;
+  context: Record<string, unknown>;
   dev_server_restart_planned: boolean;
 }
 
 export interface DeployStatusResponse {
   task_id: string;
   status: DeployStatusEnum;
-  metadata: Record<string, any>;
-  stages: Record<string, Record<string, any>>;
+  metadata: Record<string, unknown>;
+  stages: Record<string, Record<string, unknown>>;
   started_at: string;
   completed_at?: string | null;
   error_log?: string | null;
-  failure_context?: Record<string, any> | null;
-  cost_estimate?: Record<string, any> | null;
-  risk_assessment?: Record<string, any> | null;
+  failure_context?: Record<string, unknown> | null;
+  cost_estimate?: Record<string, unknown> | null;
+  risk_assessment?: Record<string, unknown> | null;
   llm_preview?: LLMPreview | null;
   blue_green_plan?: BlueGreenPlan | null;
 }
@@ -54,8 +54,8 @@ export interface DeployPreviewResponse {
   frontend_project_path?: string | null;
   frontend_output_path?: string | null;
   commands: string[];
-  risk_assessment: Record<string, any>;
-  cost_estimate: Record<string, any>;
+  risk_assessment: Record<string, unknown>;
+  cost_estimate: Record<string, unknown>;
   llm_preview?: LLMPreview | null;
   timeline_preview: DeployTimelineEntry[];
   warnings: string[];
@@ -76,7 +76,7 @@ export interface DeployTimelineEntry {
   label: string;
   expected_seconds?: number | null;
   completed: boolean;
-  metadata?: Record<string, any> | null;
+  metadata?: Record<string, unknown> | null;
 }
 
 export interface DeployTaskSummary {
@@ -86,17 +86,17 @@ export interface DeployTaskSummary {
   action: "deploy" | "rollback";
   started_at: string;
   completed_at?: string | null;
-  summary?: Record<string, any> | null;
-  failure_context?: Record<string, any> | null;
+  summary?: Record<string, unknown> | null;
+  failure_context?: Record<string, unknown> | null;
 }
 
 export interface DeployTaskLogResponse {
   task_id: string;
   status: DeployStatusEnum;
-  stages: Record<string, Record<string, any>>;
-  metadata: Record<string, any>;
+  stages: Record<string, Record<string, unknown>>;
+  metadata: Record<string, unknown>;
   error_log?: string | null;
-  failure_context?: Record<string, any> | null;
+  failure_context?: Record<string, unknown> | null;
 }
 
 export interface HealthStatusResponse {

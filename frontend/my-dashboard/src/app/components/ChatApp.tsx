@@ -59,6 +59,7 @@ export default function ChatApp() {
       }, 30);
       setMessages((prev) => [...prev, botMsg]);
     } catch (err) {
+      console.error(err);
       setMessages((prev) => [
         ...prev,
         { sender: "bot", text: "⚠️ 서버 응답 실패" },

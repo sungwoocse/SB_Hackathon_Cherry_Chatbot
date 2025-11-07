@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Lottie from "lottie-react";
+import Lottie, { type LottieComponentProps } from "lottie-react";
 import { API_BASE_URL, JSON_HEADERS } from "@/lib/api";
 import type { DeployStatusEnum, DeployStatusResponse } from "@/types/deploy";
 
@@ -17,11 +17,13 @@ const STATUS_PROGRESS: Record<DeployStatusEnum, number> = {
   failed: 100,
 };
 
+type LottieData = LottieComponentProps["animationData"];
+
 export default function DeployPage() {
   const [taskId, setTaskId] = useState<string | null>(null);
   const [status, setStatus] = useState<VisualStatus>("idle");
   const [taskDetail, setTaskDetail] = useState<DeployStatusResponse | null>(null);
-  const [animationData, setAnimationData] = useState<any | null>(null);
+  const [animationData, setAnimationData] = useState<LottieData | null>(null);
   const [isLoadingAnim, setIsLoadingAnim] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pollRef = useRef<number | null>(null);
@@ -46,7 +48,7 @@ export default function DeployPage() {
     fetch(animPath)
       .then((r) => r.json())
       .then((json) => {
-        if (!aborted) setAnimationData(json);
+        if (!aborted) setAnimationData(json as LottieData);
       })
       .finally(() => {
         if (!aborted) setIsLoadingAnim(false);
