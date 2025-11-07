@@ -147,6 +147,12 @@ export default function Page() {
     }
   };
 
+  const primeTaskState = (nextStatus: keyof typeof PROGRESS_BY_STATUS = "pending") => {
+    setState({ status: nextStatus, timestamp: new Date().toISOString() });
+    setCurrentStages({});
+    setFailureInfo(null);
+  };
+
   const handleOpenPreflight = async () => {
     setPreflightOpen(true);
     setPreflightLoading(true);
@@ -177,6 +183,7 @@ export default function Page() {
     setDeploying(true);
     setError(null);
     setFailureInfo(null);
+    primeTaskState("pending");
     try {
       const res = await api.post("/api/v1/deploy", { branch: "deploy" });
       setTaskId(res.data.task_id);
@@ -197,6 +204,7 @@ export default function Page() {
     if (rollbacking) return;
     if (!confirm("이전 버전으로 롤백하시겠습니까?")) return;
     setRollbacking(true);
+    primeTaskState("pending");
     try {
       const res = await api.post("/api/v1/rollback", { branch: "deploy" });
       setTaskId(res.data.task_id);
