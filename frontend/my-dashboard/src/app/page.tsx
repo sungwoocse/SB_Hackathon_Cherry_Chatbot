@@ -59,11 +59,6 @@ export default function Page() {
   const [failureInfo, setFailureInfo] = useState<Record<string, unknown> | null>(null);
   const [currentStages, setCurrentStages] = useState<Record<string, Record<string, unknown>>>({});
 
-  const [chatInput, setChatInput] = useState("");
-  const [chatReply, setChatReply] = useState<string | null>(null);
-  const [chatLoading, setChatLoading] = useState(false);
-  const [chatError, setChatError] = useState<string | null>(null);
-
   const [preflightOpen, setPreflightOpen] = useState(false);
   const [preflightLoading, setPreflightLoading] = useState(false);
   const [preflightError, setPreflightError] = useState<string | null>(null);
@@ -211,23 +206,6 @@ export default function Page() {
       setError("롤백 실패");
     } finally {
       setRollbacking(false);
-    }
-  };
-
-  const handleChatSend = async () => {
-    if (!chatInput.trim() || chatLoading) return;
-    setChatLoading(true);
-    setChatError(null);
-    setChatReply(null);
-    try {
-      const res = await api.post("/api/v1/chat", { message: chatInput.trim() });
-      setChatReply(res.data.reply || "응답이 비어있어요.");
-      setChatInput("");
-    } catch (err) {
-      console.error(err);
-      setChatError("챗봇 호출 실패");
-    } finally {
-      setChatLoading(false);
     }
   };
 
@@ -536,7 +514,7 @@ export default function Page() {
         )}
       </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 gap-6 mb-8">
         <motion.div className="bg-gray-800 p-6 rounded-2xl border border-gray-800" variants={cardVariants} initial="hidden" animate="visible" custom={6}>
           <details className="group" open={Boolean(taskLogs)}>
             <summary className="flex items-center justify-between cursor-pointer text-lg font-semibold">
@@ -560,33 +538,6 @@ export default function Page() {
               )}
             </div>
           </details>
-        </motion.div>
-
-        <motion.div className="bg-gray-800 p-6 rounded-2xl border border-gray-800" variants={cardVariants} initial="hidden" animate="visible" custom={7}>
-          <p className="text-lg font-semibold mb-2">💬 Chat Ops</p>
-          <p className="text-sm text-gray-400 mb-4">백엔드 챗봇 API에 질문해 배포 상황을 설명받을 수 있어요.</p>
-          <textarea
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-            rows={3}
-            placeholder="배포 요약을 알려줘"
-            className="w-full rounded bg-gray-900 border border-gray-700 px-3 py-2 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <button
-            onClick={handleChatSend}
-            disabled={chatLoading || !chatInput.trim()}
-            className={`mt-3 w-full py-2 rounded text-sm ${
-              chatLoading || !chatInput.trim() ? "bg-blue-900 text-blue-200 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-500 text-white"
-            }`}
-          >
-            {chatLoading ? "질문 중..." : "Gemini에게 물어보기"}
-          </button>
-          {chatError && <p className="text-xs text-red-400 mt-2">{chatError}</p>}
-          {chatReply && (
-            <div className="mt-3 p-3 rounded bg-gray-900 border border-gray-700 text-sm text-gray-100 whitespace-pre-wrap">
-              {chatReply}
-            </div>
-          )}
         </motion.div>
       </div>
 
@@ -645,7 +596,7 @@ export default function Page() {
                   )}
                 </section>
                 <section className="rounded bg-yellow-900/20 border border-yellow-700 p-3 text-sm text-yellow-100">
-                  dev 서버를 재기동하므로 화면이 잠시 리셋될 수 있습니다. 현재 창을 닫아도 배포는 계속 진행됩니다.
+                  실제 배포 버튼을 누르면 dev 서버를 재기동하므로 화면이 잠시 리셋될 수 있습니다. 창을 닫아도 작업은 계속됩니다.
                 </section>
               </div>
             ) : (
