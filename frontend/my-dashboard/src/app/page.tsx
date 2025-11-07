@@ -79,7 +79,6 @@ export default function Page() {
   const [startingDeploy, setStartingDeploy] = useState(false);
   const [chatVisible, setChatVisible] = useState(false);
 
-  const llmSummary = previewDetail?.llm_preview?.summary ?? null;
 
   const warnings = previewDetail?.warnings ?? [];
   const previewTimeline = previewDetail?.timeline_preview ?? [];
@@ -344,8 +343,8 @@ export default function Page() {
             </button>
           </div>
         </div>
-        <p className="mt-4 text-gray-200 whitespace-pre-line">
-          {llmSummary || "최근 프리뷰 데이터를 불러오는 중입니다."}
+        <p className="mt-4 text-gray-200">
+          “배포 준비” 버튼을 눌러 최신 변경 요약과 위험 요소를 확인한 뒤 실제 배포를 실행하세요.
         </p>
         {blueGreenInfo ? (
           <p className="mt-3 text-sm text-gray-400">
