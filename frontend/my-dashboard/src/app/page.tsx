@@ -72,6 +72,7 @@ export default function Page() {
   const [failureInfo, setFailureInfo] = useState<Record<string, unknown> | null>(null);
   const [currentStages, setCurrentStages] = useState<Record<string, Record<string, unknown>>>({});
   const [taskTimezone, setTaskTimezone] = useState<string>("Asia/Seoul");
+  const [heroOverrideStatus, setHeroOverrideStatus] = useState<string | null>(null);
 
   const [preflightOpen, setPreflightOpen] = useState(false);
   const [preflightLoading, setPreflightLoading] = useState(false);
@@ -94,13 +95,6 @@ export default function Page() {
     }
     return healthInfo?.blue_green ?? null;
   }, [previewDetail, healthInfo]);
-
-  const cardStatusColor =
-    state.status === "completed"
-      ? "text-green-400"
-      : state.status === "failed"
-      ? "text-red-400"
-      : "text-yellow-400";
 
   const fetchPreview = async (task?: string | null) => {
     try {
@@ -151,6 +145,7 @@ export default function Page() {
     setState({ status: nextStatus, timestamp: new Date().toISOString() });
     setCurrentStages({});
     setFailureInfo(null);
+    setHeroOverrideStatus(nextStatus);
   };
 
   const handleOpenPreflight = async () => {
@@ -256,11 +251,13 @@ export default function Page() {
         setCurrentStages(payload.stages || {});
         setFailureInfo(payload.failure_context || null);
         setTaskTimezone(payload.timezone || "Asia/Seoul");
+        setHeroOverrideStatus(null);
         setLastUpdate(new Date().toLocaleTimeString());
         if (["completed", "failed"].includes(payload.status)) {
           setDeploying(false);
           setTaskId(null);
           persistTaskId(null);
+          setHeroOverrideStatus(null);
           fetchRecent();
           fetchPreview();
           clearInterval(interval);
@@ -270,13 +267,21 @@ export default function Page() {
         setDeploying(false);
         setTaskId(null);
         persistTaskId(null);
+        setHeroOverrideStatus(null);
         clearInterval(interval);
       }
     }, 3000);
     return () => clearInterval(interval);
   }, [taskId]);
 
-  const heroProgress = PROGRESS_BY_STATUS[state.status || "pending"] ?? 8;
+  const effectiveHeroStatus = heroOverrideStatus || state.status || "pending";
+  const heroProgress = PROGRESS_BY_STATUS[effectiveHeroStatus] ?? 8;
+  const cardStatusColor =
+    effectiveHeroStatus === "completed"
+      ? "text-green-400"
+      : effectiveHeroStatus === "failed"
+      ? "text-red-400"
+      : "text-yellow-400";
   const showReloadNotice = Boolean(taskId);
 
   const formatDateTime = (value?: string | null, timezone = "Asia/Seoul") => {
@@ -343,6 +348,7 @@ export default function Page() {
   const renderHero = () => {
     if (taskId) {
       const timezoneBadge = taskTimezone === "Asia/Seoul" ? "KST" : taskTimezone;
+      const displayStatus = effectiveHeroStatus.replace("running_", "RUNNING ").toUpperCase();
       return (
         <div className="bg-gray-800 rounded-2xl border border-gray-700 p-6 mb-8">
           <div className="flex items-center justify-between flex-wrap gap-3">
@@ -352,7 +358,7 @@ export default function Page() {
               <p className="text-xs text-gray-500 mt-1">표준시: {timezoneBadge}</p>
             </div>
             <p className={`text-lg font-semibold ${cardStatusColor}`}>
-              {(state.status || "진행 중").replace("running_", "RUNNING ").toUpperCase()}
+              {displayStatus}
             </p>
           </div>
           <div className="mt-4 h-3 bg-gray-900 rounded-full overflow-hidden">
