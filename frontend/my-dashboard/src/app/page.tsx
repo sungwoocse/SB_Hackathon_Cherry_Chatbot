@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import axios from "axios";
 import ChatWidget from "./components/ChatWidget";
+import { API_BASE_URL, JSON_HEADERS } from "@/lib/api";
 import type {
+  BlueGreenPlan,
   DeployPreviewResponse,
   DeployTaskSummary,
   DeployTaskLogResponse,
@@ -13,8 +15,8 @@ import type {
 } from "@/types/deploy";
 
 const api = axios.create({
-  baseURL: "https://delight.13-125-116-92.nip.io",
-  headers: { "Content-Type": "application/json" },
+  baseURL: API_BASE_URL,
+  headers: JSON_HEADERS,
 });
 
 interface DashboardState {
@@ -63,6 +65,28 @@ export default function Page() {
       "low"
     );
   }, [previewDetail]);
+
+  const llmPreview = previewDetail?.llm_preview;
+
+  const llmSummary = llmPreview?.summary ?? null;
+
+  const llmHighlights = llmPreview?.highlights ?? [];
+
+  const llmRisks = llmPreview?.risks ?? [];
+
+  const commandList = previewDetail?.commands ?? [];
+
+  const { blueGreenInfo, blueGreenSource } = useMemo(() => {
+    const summary = previewDetail?.task_context?.summary as { blue_green?: BlueGreenPlan } | undefined;
+    const fromPreview = previewDetail?.blue_green_plan ?? summary?.blue_green ?? null;
+    if (fromPreview) {
+      return { blueGreenInfo: fromPreview, blueGreenSource: "preview" as const };
+    }
+    if (healthInfo?.blue_green) {
+      return { blueGreenInfo: healthInfo.blue_green, blueGreenSource: "healthz" as const };
+    }
+    return { blueGreenInfo: null, blueGreenSource: null };
+  }, [previewDetail, healthInfo]);
 
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -323,7 +347,7 @@ export default function Page() {
         </motion.div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
         <motion.div className="bg-gray-800 p-6 rounded-lg shadow" variants={cardVariants} initial="hidden" animate="visible" custom={4}>
           <p className="text-lg font-semibold mb-3">🛠 Preview Timeline</p>
           {previewTimeline.length ? (
@@ -346,6 +370,55 @@ export default function Page() {
         </motion.div>
 
         <motion.div className="bg-gray-800 p-6 rounded-lg shadow" variants={cardVariants} initial="hidden" animate="visible" custom={5}>
+          <div className="flex items-center justify-between">
+            <p className="text-lg font-semibold">🧠 Gemini Preview</p>
+            <button
+              onClick={() => fetchPreview(taskId)}
+              className="text-xs px-2 py-1 bg-gray-700 rounded hover:bg-gray-600"
+            >
+              새로고침
+            </button>
+          </div>
+          {llmSummary ? (
+            <p className="text-sm text-gray-200 mt-3 whitespace-pre-line">{llmSummary}</p>
+          ) : (
+            <p className="text-sm text-gray-400 mt-3">LLM 요약이 아직 준비되지 않았습니다.</p>
+          )}
+          {llmHighlights.length > 0 && (
+            <div className="mt-4">
+              <p className="text-xs text-gray-400 mb-1">하이라이트</p>
+              <ul className="text-sm text-gray-100 list-disc list-inside space-y-1">
+                {llmHighlights.map((point, idx) => (
+                  <li key={`highlight-${idx}`}>{point}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {llmRisks.length > 0 && (
+            <div className="mt-4">
+              <p className="text-xs text-gray-400 mb-1">위험 요소</p>
+              <ul className="text-sm text-yellow-100 list-disc list-inside space-y-1">
+                {llmRisks.map((risk, idx) => (
+                  <li key={`risk-${idx}`}>{risk}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <div className="mt-4 border-t border-gray-700 pt-3">
+            <p className="text-sm text-gray-400 mb-2">실행 명령</p>
+            {commandList.length ? (
+              <ol className="text-xs text-gray-100 space-y-1 max-h-36 overflow-auto list-decimal list-inside">
+                {commandList.map((cmd, idx) => (
+                  <li key={`cmd-${idx}`}>{cmd}</li>
+                ))}
+              </ol>
+            ) : (
+              <p className="text-gray-500 text-sm">명령 정보가 아직 없습니다.</p>
+            )}
+          </div>
+        </motion.div>
+
+        <motion.div className="bg-gray-800 p-6 rounded-lg shadow" variants={cardVariants} initial="hidden" animate="visible" custom={6}>
           <p className="text-lg font-semibold mb-3">📡 실시간 Stage</p>
           {liveStages.length ? (
             <ul className="space-y-2 text-sm">
@@ -373,8 +446,42 @@ export default function Page() {
         </motion.div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <motion.div className="bg-gray-800 p-6 rounded-lg shadow" variants={cardVariants} initial="hidden" animate="visible" custom={6}>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
+        <motion.div className="bg-gray-800 p-6 rounded-lg shadow" variants={cardVariants} initial="hidden" animate="visible" custom={7}>
+          <p className="text-lg font-semibold mb-3">💠 Blue / Green 상태</p>
+          {blueGreenInfo ? (
+            <div className="space-y-2 text-sm">
+              <p>
+                Active Slot: <span className="text-white font-semibold">{blueGreenInfo.active_slot ?? "정보 없음"}</span>
+              </p>
+              <p>
+                Standby Slot: <span className="text-white font-semibold">{blueGreenInfo.standby_slot ?? "정보 없음"}</span>
+              </p>
+              <p>
+                마지막 컷오버:{" "}
+                <span className="text-white font-semibold">
+                  {blueGreenInfo.last_cutover_at
+                    ? new Date(blueGreenInfo.last_cutover_at).toLocaleString("ko-KR")
+                    : "기록 없음"}
+                </span>
+              </p>
+              {blueGreenInfo.next_cutover_target && (
+                <p>
+                  다음 전환 예정: <span className="text-white font-semibold">{blueGreenInfo.next_cutover_target}</span>
+                </p>
+              )}
+              <p className="text-xs text-gray-400">
+                데이터 출처: {blueGreenSource === "preview" ? "Preview API" : blueGreenSource === "healthz" ? "Healthz" : "수집 중"}
+              </p>
+            </div>
+          ) : (
+            <p className="text-gray-400 text-sm">
+              Blue/Green 메타데이터를 불러오는 중입니다. healthz 또는 preview 응답에 `blue_green` 필드를 채워 주세요.
+            </p>
+          )}
+        </motion.div>
+
+        <motion.div className="bg-gray-800 p-6 rounded-lg shadow" variants={cardVariants} initial="hidden" animate="visible" custom={8}>
           <p className="text-lg font-semibold mb-3">⚠ Preview Warnings</p>
           {warnings.length ? (
             <ul className="list-disc list-inside text-sm text-yellow-200 space-y-1">
@@ -387,7 +494,7 @@ export default function Page() {
           )}
         </motion.div>
 
-        <motion.div className="bg-gray-800 p-6 rounded-lg shadow" variants={cardVariants} initial="hidden" animate="visible" custom={7}>
+        <motion.div className="bg-gray-800 p-6 rounded-lg shadow" variants={cardVariants} initial="hidden" animate="visible" custom={9}>
           <div className="flex items-center justify-between mb-3">
             <p className="text-lg font-semibold">📝 최근 작업</p>
             <button onClick={fetchRecent} className="text-xs px-2 py-1 bg-gray-700 rounded hover:bg-gray-600">
@@ -415,7 +522,7 @@ export default function Page() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
-        <motion.div className="bg-gray-800 p-6 rounded-lg shadow" variants={cardVariants} initial="hidden" animate="visible" custom={8}>
+        <motion.div className="bg-gray-800 p-6 rounded-lg shadow" variants={cardVariants} initial="hidden" animate="visible" custom={10}>
           <div className="flex items-center justify-between mb-3">
             <p className="text-lg font-semibold">🧾 Task Logs</p>
             <button
@@ -437,7 +544,7 @@ export default function Page() {
           )}
         </motion.div>
 
-        <motion.div className="bg-gray-800 p-6 rounded-lg shadow" variants={cardVariants} initial="hidden" animate="visible" custom={9}>
+        <motion.div className="bg-gray-800 p-6 rounded-lg shadow" variants={cardVariants} initial="hidden" animate="visible" custom={11}>
           <p className="text-lg font-semibold mb-2">💬 Chat Ops</p>
           <p className="text-sm text-gray-400 mb-4">백엔드 챗봇 API에 직접 질문해 배포 상황을 설명받을 수 있어요.</p>
           <textarea

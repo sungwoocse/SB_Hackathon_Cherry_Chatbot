@@ -1,10 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import "./ChatStyles.css";
-
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
-  "https://delight.13-125-116-92.nip.io";
+import { API_BASE_URL, JSON_HEADERS } from "@/lib/api";
 
 interface Message {
   sender: "user" | "bot";
@@ -34,9 +31,9 @@ export default function ChatApp() {
     setInput("");
 
     try {
-      const res = await fetch(`${API_BASE}/api/v1/chat`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: JSON_HEADERS,
         body: JSON.stringify({ message: input }),
       });
       if (!res.ok) {

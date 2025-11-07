@@ -1,10 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Character from "./Character";
-
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
-  "https://delight.13-125-116-92.nip.io";
+import { API_BASE_URL, JSON_HEADERS } from "@/lib/api";
 
 export default function ChatWidget() {
   const [status, setStatus] = useState<"idle" | "talking" | "success" | "failed">("idle");
@@ -32,9 +29,9 @@ export default function ChatWidget() {
     setSending(true);
 
     try {
-      const res = await fetch(`${API_BASE}/api/v1/chat`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: JSON_HEADERS,
         body: JSON.stringify({ message: text }),
       });
       if (!res.ok) {

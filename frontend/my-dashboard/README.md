@@ -29,8 +29,16 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
+## API Base URL 설정
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+대시보드는 FastAPI 백엔드와 통신하므로, 환경변수 `NEXT_PUBLIC_API_BASE_URL`을 이용해 대상 서버를 지정할 수 있습니다.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+# 예시) 로컬 FastAPI (swagger spec 의 127.0.0.1:9001)
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:9001 npm run dev
+
+# 예시) 배포된 Nginx HTTPS 엔드포인트
+NEXT_PUBLIC_API_BASE_URL=https://delight.13-125-116-92.nip.io npm run dev
+```
+
+값을 지정하지 않으면 개발 모드에서는 `http://127.0.0.1:9001`, 프로덕션 빌드에서는 `https://delight.13-125-116-92.nip.io`가 기본값으로 사용됩니다.

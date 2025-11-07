@@ -42,6 +42,10 @@ export interface DeployStatusResponse {
   completed_at?: string | null;
   error_log?: string | null;
   failure_context?: Record<string, any> | null;
+  cost_estimate?: Record<string, any> | null;
+  risk_assessment?: Record<string, any> | null;
+  llm_preview?: LLMPreview | null;
+  blue_green_plan?: BlueGreenPlan | null;
 }
 
 export interface DeployPreviewResponse {
@@ -52,10 +56,11 @@ export interface DeployPreviewResponse {
   commands: string[];
   risk_assessment: Record<string, any>;
   cost_estimate: Record<string, any>;
-  llm_preview?: Record<string, any> | null;
+  llm_preview?: LLMPreview | null;
   timeline_preview: DeployTimelineEntry[];
   warnings: string[];
   task_context?: DeployTaskSummary | null;
+  blue_green_plan?: BlueGreenPlan | null;
 }
 
 export interface RollbackRequest {
@@ -101,4 +106,18 @@ export interface HealthStatusResponse {
   last_task_id?: string | null;
   last_task_status?: DeployStatusEnum | null;
   issues: string[];
+  blue_green?: BlueGreenPlan | null;
+}
+
+export interface LLMPreview {
+  summary: string;
+  highlights: string[];
+  risks: string[];
+}
+
+export interface BlueGreenPlan {
+  active_slot: string;
+  standby_slot?: string | null;
+  last_cutover_at?: string | null;
+  next_cutover_target: string | null;
 }
