@@ -80,6 +80,7 @@ export default function Page() {
   const [preflightData, setPreflightData] = useState<DeployPreviewResponse | null>(null);
   const [startingDeploy, setStartingDeploy] = useState(false);
   const [chatVisible, setChatVisible] = useState(false);
+  const [confirmingRollback, setConfirmingRollback] = useState(false);
 
 
   const warnings = previewDetail?.warnings ?? [];
@@ -197,7 +198,11 @@ export default function Page() {
 
   const handleRollback = async () => {
     if (rollbacking) return;
-    if (!confirm("이전 버전으로 롤백하시겠습니까?")) return;
+    setConfirmingRollback(true);
+  };
+
+  const confirmRollback = async () => {
+    if (rollbacking) return;
     setRollbacking(true);
     primeTaskState("pending");
     try {
@@ -205,6 +210,7 @@ export default function Page() {
       setTaskId(res.data.task_id);
       persistTaskId(res.data.task_id);
       await fetchRecent();
+      setConfirmingRollback(false);
     } catch (err) {
       console.error(err);
       setError("롤백 실패");
@@ -739,6 +745,44 @@ export default function Page() {
                 }`}
               >
                 {startingDeploy ? "배포 시작 중..." : "실제 배포"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmingRollback && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[10000] p-4">
+          <div className="bg-gray-900 border border-red-700 rounded-2xl w-full max-w-md p-6 relative">
+            <button
+              onClick={() => setConfirmingRollback(false)}
+              className="absolute top-3 right-3 text-gray-400 hover:text-white"
+              aria-label="close rollback modal"
+              disabled={rollbacking}
+            >
+              ✕
+            </button>
+            <h3 className="text-2xl font-semibold text-red-300 mb-2">롤백 확인</h3>
+            <p className="text-sm text-gray-300">
+              현재 배포 상태를 이전 성공 버전으로 되돌립니다. 작업 중에는 dev 서버가 재시작될 수 있으며,
+              변경 사항이 사라집니다. 계속 진행하시겠습니까?
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => setConfirmingRollback(false)}
+                disabled={rollbacking}
+                className="px-4 py-2 rounded border border-gray-600 text-gray-200 hover:bg-gray-800"
+              >
+                취소
+              </button>
+              <button
+                onClick={confirmRollback}
+                disabled={rollbacking}
+                className={`px-4 py-2 rounded text-white font-semibold ${
+                  rollbacking ? "bg-red-900 cursor-not-allowed" : "bg-red-600 hover:bg-red-500"
+                }`}
+              >
+                {rollbacking ? "롤백 중..." : "롤백 실행"}
               </button>
             </div>
           </div>
