@@ -1,8 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  experimental: {
-    turbo: false, // ✅ Turbopack 완전 비활성화
+  turbopack: {
+    // 상위 리포지토리의 lockfile을 루트로 잘못 추론하는 것을 방지
+    root: __dirname,
   },
 };
 

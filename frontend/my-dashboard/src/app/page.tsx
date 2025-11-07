@@ -413,17 +413,21 @@ export default function Page() {
           <p className="text-lg font-semibold">📡 실시간 Stage</p>
           {liveStages.length ? (
             <ul className="mt-4 space-y-2 text-sm">
-              {liveStages.map(([stage, details]) => (
-                <li key={stage} className="flex items-start gap-2">
-                  <span className="text-blue-400">•</span>
-                  <div>
-                    <p className="text-gray-100">{stage}</p>
-                    {details?.timestamp && (
-                      <p className="text-xs text-gray-500">{new Date(details.timestamp).toLocaleTimeString("ko-KR")}</p>
-                    )}
-                  </div>
-                </li>
-              ))}
+              {liveStages.map(([stage, details]) => {
+                const timestamp =
+                  details && typeof details.timestamp === "string"
+                    ? new Date(details.timestamp).toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul" })
+                    : null;
+                return (
+                  <li key={stage} className="flex items-start gap-2">
+                    <span className="text-blue-400">•</span>
+                    <div>
+                      <p className="text-gray-100">{stage}</p>
+                      {timestamp && <p className="text-xs text-gray-500">{timestamp}</p>}
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           ) : (
             <p className="mt-4 text-sm text-gray-500">진행 중인 Stage 정보가 없습니다.</p>

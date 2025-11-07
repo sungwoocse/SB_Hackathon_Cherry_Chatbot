@@ -123,7 +123,7 @@ export default function DeployPage() {
     <div className="p-8 max-w-3xl mx-auto text-gray-100">
       <h1 className="text-2xl font-bold text-blue-400">배포 진행</h1>
       <p className="text-sm text-gray-400 mt-1">
-        FastAPI `/api/v1/deploy` → `/api/v1/status/{{task_id}}` 실데이터를 사용합니다.
+        FastAPI `/api/v1/deploy` → `/api/v1/status/(task_id)` 실데이터를 사용합니다.
       </p>
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -187,14 +187,18 @@ export default function DeployPage() {
             <p className="text-sm text-gray-400 mb-2">현재 Stage 메타데이터</p>
             {Object.entries(taskDetail.stages || {}).length ? (
               <ul className="text-xs font-mono space-y-1 text-gray-300">
-                {Object.entries(taskDetail.stages).map(([stage, info]) => (
-                  <li key={stage} className="flex justify-between gap-4">
-                    <span>{stage}</span>
-                    <span className="text-gray-400">
-                      {info?.timestamp ? new Date(info.timestamp).toLocaleTimeString("ko-KR") : "-"}
-                    </span>
-                  </li>
-                ))}
+                {Object.entries(taskDetail.stages).map(([stage, info]) => {
+                  const timestamp =
+                    info && typeof info.timestamp === "string"
+                      ? new Date(info.timestamp).toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul" })
+                      : "-";
+                  return (
+                    <li key={stage} className="flex justify-between gap-4">
+                      <span>{stage}</span>
+                      <span className="text-gray-400">{timestamp}</span>
+                    </li>
+                  );
+                })}
               </ul>
             ) : (
               <p className="text-gray-500 text-sm">스테이지 정보 없음</p>
