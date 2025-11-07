@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import axios from "axios";
 import ChatWidget from "./components/ChatWidget";
@@ -73,6 +73,8 @@ export default function Page() {
   const [currentStages, setCurrentStages] = useState<Record<string, Record<string, unknown>>>({});
   const [taskTimezone, setTaskTimezone] = useState<string>("Asia/Seoul");
   const [heroOverrideStatus, setHeroOverrideStatus] = useState<string | null>(null);
+  const heroOverrideTimer = useRef<NodeJS.Timeout | null>(null);
+  const heroOverrideStatusRef = useRef<string | null>(null);
 
   const [preflightOpen, setPreflightOpen] = useState(false);
   const [preflightLoading, setPreflightLoading] = useState(false);
@@ -142,7 +144,23 @@ export default function Page() {
     }
   };
 
+  const releaseHeroOverride = (delayMs = 0) => {
+    if (heroOverrideTimer.current) {
+      clearTimeout(heroOverrideTimer.current);
+      heroOverrideTimer.current = null;
+    }
+    if (delayMs <= 0) {
+      setHeroOverrideStatus(null);
+      return;
+    }
+    heroOverrideTimer.current = setTimeout(() => {
+      setHeroOverrideStatus(null);
+      heroOverrideTimer.current = null;
+    }, delayMs);
+  };
+
   const primeTaskState = (nextStatus: keyof typeof PROGRESS_BY_STATUS = "pending") => {
+    releaseHeroOverride();
     setState({ status: nextStatus, timestamp: new Date().toISOString() });
     setCurrentStages({});
     setFailureInfo(null);
@@ -220,6 +238,18 @@ export default function Page() {
   };
 
   useEffect(() => {
+    heroOverrideStatusRef.current = heroOverrideStatus;
+  }, [heroOverrideStatus]);
+
+  useEffect(() => {
+    return () => {
+      if (heroOverrideTimer.current) {
+        clearTimeout(heroOverrideTimer.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     fetchPreview();
     fetchHealth();
     fetchRecent();
@@ -257,13 +287,15 @@ export default function Page() {
         setCurrentStages(payload.stages || {});
         setFailureInfo(payload.failure_context || null);
         setTaskTimezone(payload.timezone || "Asia/Seoul");
-        setHeroOverrideStatus(null);
+        if (heroOverrideStatusRef.current) {
+          releaseHeroOverride(1000);
+        }
         setLastUpdate(new Date().toLocaleTimeString());
         if (["completed", "failed"].includes(payload.status)) {
           setDeploying(false);
           setTaskId(null);
           persistTaskId(null);
-          setHeroOverrideStatus(null);
+          releaseHeroOverride();
           fetchRecent();
           fetchPreview();
           clearInterval(interval);
@@ -273,7 +305,7 @@ export default function Page() {
         setDeploying(false);
         setTaskId(null);
         persistTaskId(null);
-        setHeroOverrideStatus(null);
+        releaseHeroOverride();
         clearInterval(interval);
       }
     }, 3000);
