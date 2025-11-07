@@ -523,33 +523,6 @@ export default function Page() {
         )}
       </motion.div>
 
-      <div className="grid grid-cols-1 gap-6 mb-8">
-        <motion.div className="bg-gray-800 p-6 rounded-2xl border border-gray-800" variants={cardVariants} initial="hidden" animate="visible" custom={6}>
-          <details className="group" open={Boolean(taskLogs)}>
-            <summary className="flex items-center justify-between cursor-pointer text-lg font-semibold">
-              🧾 Task Logs
-              <span className="text-xs text-gray-500">펼치기</span>
-            </summary>
-            <div className="mt-3">
-              <button
-                onClick={() => taskId && fetchLogs(taskId)}
-                disabled={!taskId || logLoading}
-                className={`text-xs px-2 py-1 rounded ${!taskId || logLoading ? "bg-gray-700 cursor-not-allowed" : "bg-gray-700 hover:bg-gray-600"}`}
-              >
-                새로고침
-              </button>
-              {taskLogs ? (
-                <pre className="text-xs text-gray-200 bg-gray-900 rounded p-3 mt-3 max-h-64 overflow-auto">
-                  {JSON.stringify(taskLogs.stages, null, 2)}
-                </pre>
-              ) : (
-                <p className="text-sm text-gray-500 mt-3">활성 task 로그가 없습니다.</p>
-              )}
-            </div>
-          </details>
-        </motion.div>
-      </div>
-
       <ChatWidget />
 
       {preflightOpen && (
