@@ -97,11 +97,15 @@ export default function ChatWidget({ onClose, stages = [], stageTimezone = "Asia
   const latestStageIndex = orderedStages.reduce((acc, entry, idx) => {
     if (resolveStageHasProgress(entry[1])) return idx;
     return acc;
+  }, -1);
+  const progressedCount = orderedStages.reduce((count, entry) => {
+    return count + (resolveStageHasProgress(entry[1]) ? 1 : 0);
   }, 0);
 
   const computeWindowStart = () => {
     if (!orderedStages.length) return 0;
-    const tentative = Math.floor(latestStageIndex / STAGE_WINDOW_SIZE) * STAGE_WINDOW_SIZE;
+    const baseIndex = latestStageIndex >= 0 ? latestStageIndex : 0;
+    const tentative = Math.floor(baseIndex / STAGE_WINDOW_SIZE) * STAGE_WINDOW_SIZE;
     const maxStart = Math.max(0, orderedStages.length - STAGE_WINDOW_SIZE);
     return Math.min(tentative, maxStart);
   };
@@ -109,7 +113,7 @@ export default function ChatWidget({ onClose, stages = [], stageTimezone = "Asia
   const stageWindowStart = computeWindowStart();
   const visibleStages = orderedStages.slice(stageWindowStart, stageWindowStart + STAGE_WINDOW_SIZE);
   const totalStages = orderedStages.length || 1;
-  const progressRatio = Math.min(1, (latestStageIndex + 1) / totalStages);
+  const progressRatio = Math.min(1, progressedCount / totalStages);
   const progressPercent = Math.round(progressRatio * 100);
   const gaugePercentRemaining = Math.max(0, 100 - progressPercent);
 
