@@ -44,6 +44,7 @@ export default function ChatWidget({
   const [gaugeStartTimestamp, setGaugeStartTimestamp] = useState<number>(() => Date.now());
   const [gaugePercentRemaining, setGaugePercentRemaining] = useState<number>(100);
   const [gaugeActive, setGaugeActive] = useState<boolean>(false);
+  const [lastStageUpdate, setLastStageUpdate] = useState<number | null>(null);
   const hasStageDataRef = useRef<boolean>(false);
   const orderedStages = useMemo(() => {
     const sequenceSet = new Set<string>(STAGE_DISPLAY_SEQUENCE);
@@ -135,6 +136,12 @@ export default function ChatWidget({
   const heroCompleted = heroStatus === "completed" || heroStatus === "failed";
 
   useEffect(() => {
+    if (hasStageData) {
+      setLastStageUpdate(Date.now());
+    }
+  }, [hasStageData, stages]);
+
+  useEffect(() => {
     if (!hasStageData) {
       hasStageDataRef.current = false;
       setGaugeActive(false);
@@ -158,12 +165,18 @@ export default function ChatWidget({
   useEffect(() => {
     if (!gaugeActive) return;
     const interval = setInterval(() => {
-      const elapsed = Date.now() - gaugeStartTimestamp;
+      const now = Date.now();
+      const elapsed = now - gaugeStartTimestamp;
       const ratio = Math.min(1, elapsed / GAUGE_DURATION_MS);
       setGaugePercentRemaining(Math.max(0, 100 - ratio * 100));
+
+      if (lastStageUpdate && now - lastStageUpdate > GAUGE_DURATION_MS) {
+        setGaugeActive(false);
+        setGaugePercentRemaining(0);
+      }
     }, GAUGE_TICK_MS);
     return () => clearInterval(interval);
-  }, [gaugeActive, gaugeStartTimestamp]);
+  }, [gaugeActive, gaugeStartTimestamp, lastStageUpdate]);
 
   const stageTimezoneLabel = stageTimezone === "Asia/Seoul" ? "KST" : stageTimezone;
 
