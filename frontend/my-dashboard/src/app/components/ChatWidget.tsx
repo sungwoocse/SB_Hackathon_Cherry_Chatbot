@@ -18,9 +18,7 @@ const STAGE_DISPLAY_SEQUENCE = [
   "completed",
   "failed",
 ] as const;
-const MAX_VISIBLE_STAGE_ROWS = 4;
-const STAGE_ROW_HEIGHT_REM = 2.8;
-const STAGE_LIST_MAX_HEIGHT_REM = MAX_VISIBLE_STAGE_ROWS * STAGE_ROW_HEIGHT_REM;
+const STAGE_WINDOW_SIZE = 2;
 
 type StageName = (typeof STAGE_DISPLAY_SEQUENCE)[number] | string;
 
@@ -88,6 +86,28 @@ export default function ChatWidget({ onClose, stages = [], stageTimezone = "Asia
     const note = details?.["message"] ?? details?.["note"] ?? details?.["summary"];
     return typeof note === "string" && note.trim().length ? note : null;
   };
+
+  const resolveStageHasProgress = (details: Record<string, unknown>) => {
+    if (resolveStageTimestamp(details)) return true;
+    const status = resolveStageStatus(details);
+    if (status && status !== "pending") return true;
+    return Boolean(resolveStageNote(details));
+  };
+
+  const latestStageIndex = orderedStages.reduce((acc, entry, idx) => {
+    if (resolveStageHasProgress(entry[1])) return idx;
+    return acc;
+  }, 0);
+
+  const computeWindowStart = () => {
+    if (!orderedStages.length) return 0;
+    const tentative = Math.floor(latestStageIndex / STAGE_WINDOW_SIZE) * STAGE_WINDOW_SIZE;
+    const maxStart = Math.max(0, orderedStages.length - STAGE_WINDOW_SIZE);
+    return Math.min(tentative, maxStart);
+  };
+
+  const stageWindowStart = computeWindowStart();
+  const visibleStages = orderedStages.slice(stageWindowStart, stageWindowStart + STAGE_WINDOW_SIZE);
 
   const stageTimezoneLabel = stageTimezone === "Asia/Seoul" ? "KST" : stageTimezone;
 
@@ -179,48 +199,46 @@ export default function ChatWidget({ onClose, stages = [], stageTimezone = "Asia
               <p className="text-xs uppercase tracking-[0.2em] text-gray-400">📡 Live Stages</p>
               <p className="text-[10px] text-gray-500">Timezone: {stageTimezoneLabel}</p>
             </div>
-            {orderedStages.length ? (
-              <ol
-                className="mt-3 space-y-2 text-[13px] leading-tight"
-                style={{ maxHeight: `${STAGE_LIST_MAX_HEIGHT_REM}rem`, overflowY: "auto" }}
-              >
-                {orderedStages.map(([stageName, details], index) => {
+            {visibleStages.length ? (
+              <ol className="mt-3 space-y-2 text-[12px] leading-tight">
+                {visibleStages.map(([stageName, details], idx) => {
                   const timestamp = formatStageTime(resolveStageTimestamp(details));
                   const status = resolveStageStatus(details);
                   const note = resolveStageNote(details);
                   const isCompleted = status === "completed";
                   const isActive = !isCompleted && Boolean(timestamp);
+                  const globalIndex = stageWindowStart + idx;
                   return (
                     <li
                       key={`stage-${stageName}`}
-                      className="flex items-start gap-2.5 rounded-lg border border-[#1c2940] bg-[#0c1524]/60 p-2.5"
+                      className="flex items-start gap-2 rounded-lg border border-[#1c2940] bg-[#0c1524]/60 p-2"
                     >
                       <div
-                        className={`mt-0.5 flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold ${
+                        className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-semibold ${
                           isCompleted
-                            ? "bg-green-500/20 text-green-300"
+                            ? "bg-green-500/20 text-green-200"
                             : isActive
                             ? "bg-blue-500/20 text-blue-200"
-                            : "bg-gray-600/30 text-gray-300"
+                            : "bg-gray-600/30 text-gray-400"
                         }`}
                       >
-                        {index + 1}
+                        {globalIndex + 1}
                       </div>
-                      <div className="flex-1 space-y-1">
+                      <div className="flex-1 space-y-0.5">
                         <div className="flex items-center justify-between gap-3">
                           <div>
-                            <p className="text-[13px] font-semibold capitalize text-blue-50">
+                            <p className="text-[12px] font-semibold capitalize text-blue-50">
                               {formatStageLabel(stageName)}
                             </p>
                             <p className="text-[10px] uppercase tracking-wide text-gray-500">{status}</p>
                           </div>
                           {timestamp ? (
-                            <p className="text-[11px] text-blue-200">{timestamp}</p>
+                            <p className="text-[10px] text-blue-200">{timestamp}</p>
                           ) : (
-                            <p className="text-[11px] text-gray-500">대기 중</p>
+                            <p className="text-[10px] text-gray-500">대기 중</p>
                           )}
                         </div>
-                        {note && <p className="text-[11px] text-gray-300 leading-snug">{note}</p>}
+                        {note && <p className="text-[10px] text-gray-300 leading-tight">{note}</p>}
                       </div>
                     </li>
                   );
