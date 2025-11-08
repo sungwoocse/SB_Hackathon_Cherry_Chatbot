@@ -26,15 +26,12 @@ export default function ChatWidget({ onClose, stages = [], stageTimezone = "Asia
   const POPUP_HEIGHT_REM = 24; // 기존 세로 크기 유지
   const IDEATION_WIDTH_REM = POPUP_WIDTH_REM; // 동일 폭으로 왼쪽 확장
   const HEADER_HEIGHT_REM = 3; // 1.2x 높이 확보
-  const IDEATION_FEED_HEIGHT_REM = POPUP_HEIGHT_REM * 0.3; // 좌측 대화 로그 영역을 전체의 30%로 제한
-  const IDEATION_HEADER_HEIGHT_REM = POPUP_HEIGHT_REM - IDEATION_FEED_HEIGHT_REM;
   const [messages, setMessages] = useState<{ sender: "user" | "bot"; text: string }[]>([
     { sender: "bot", text: "안녕하세요! 무엇을 도와드릴까요?" },
   ]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const primaryEndRef = useRef<HTMLDivElement | null>(null);
-  const ideationEndRef = useRef<HTMLDivElement | null>(null);
   const orderedStages = useMemo(() => {
     const sequenceSet = new Set<string>(STAGE_DISPLAY_SEQUENCE);
     const stageMap = new Map<string, Record<string, unknown>>();
@@ -76,12 +73,24 @@ export default function ChatWidget({ onClose, stages = [], stageTimezone = "Asia
       return null;
     }
   };
+  const resolveStageStatus = (details: Record<string, unknown>) => {
+    const status = details?.["status"];
+    if (typeof status === "string" && status.trim()) return status;
+    const completed = details?.["completed"];
+    if (completed === true) return "completed";
+    return "pending";
+  };
+
+  const resolveStageNote = (details: Record<string, unknown>) => {
+    const note = details?.["message"] ?? details?.["note"] ?? details?.["summary"];
+    return typeof note === "string" && note.trim().length ? note : null;
+  };
+
   const stageTimezoneLabel = stageTimezone === "Asia/Seoul" ? "KST" : stageTimezone;
 
   // ✅ 새 메시지마다 하단으로 스크롤
   useEffect(() => {
     primaryEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    ideationEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const handleSend = async () => {
@@ -141,10 +150,7 @@ export default function ChatWidget({ onClose, stages = [], stageTimezone = "Asia
           className="rounded-xl shadow-2xl border border-[#2c3d55] overflow-hidden animate-fade-in origin-bottom-right flex flex-col bg-[#0f1826]"
           style={{ width: `${IDEATION_WIDTH_REM}rem`, height: `${POPUP_HEIGHT_REM}rem` }}
         >
-          <div
-            className="relative bg-[#17243a] border-b border-[#2c3d55] p-5 overflow-hidden flex flex-col justify-end"
-            style={{ height: `${IDEATION_HEADER_HEIGHT_REM}rem` }}
-          >
+          <div className="relative bg-[#17243a] border-b border-[#2c3d55] p-5 overflow-hidden flex flex-col justify-end min-h-[13rem]">
             <Image
               src="/images/idle.png"
               alt="Cherry assistant idle"
@@ -163,73 +169,59 @@ export default function ChatWidget({ onClose, stages = [], stageTimezone = "Asia
               priority={false}
               unoptimized
             />
-            <div className="relative z-10 space-y-3 pr-28">
-              <div className="text-left text-blue-50">
-                <p className="text-sm font-semibold tracking-wide uppercase">Deploy Status</p>
-                <p className="text-xs text-gray-300 leading-relaxed">
-                  진행 중인 Stage를 순차적으로 모니터링하세요.
-                </p>
-              </div>
-              <div className="bg-[#0d1423]/80 border border-[#24334d] rounded-lg p-3 text-xs text-blue-50 max-h-48 overflow-y-auto">
-                <p className="text-[11px] uppercase tracking-wide text-gray-400 mb-2">📡 Live Stages</p>
-                {orderedStages.length ? (
-                  <ul className="space-y-1.5">
-                    {orderedStages.map(([stageName, details]) => {
-                      const timestamp = formatStageTime(resolveStageTimestamp(details));
-                      return (
-                        <li key={`stage-${stageName}`} className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`w-2 h-2 rounded-full ${
-                                timestamp ? "bg-blue-400" : "bg-gray-600"
-                              }`}
-                            />
-                            <span className="font-semibold capitalize">{formatStageLabel(stageName)}</span>
-                          </div>
-                          {timestamp ? (
-                            <span className="text-[10px] text-gray-400">{timestamp}</span>
-                          ) : (
-                            <span className="text-[10px] text-gray-600">대기 중</span>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : (
-                  <p className="text-[11px] text-gray-400">Stage 데이터가 없습니다.</p>
-                )}
-                <p className="text-[10px] text-gray-500 mt-2">Timezone: {stageTimezoneLabel}</p>
-              </div>
+            <div className="relative z-10 pr-28 space-y-2">
+              <p className="text-sm font-semibold tracking-wide uppercase text-blue-50">Deploy Status</p>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                진행 중인 Stage를 순차적으로 추적하며 이상 징후를 빠르게 포착하세요.
+              </p>
             </div>
           </div>
-          <div
-            className="bg-[#141f30] text-white p-3 overflow-y-auto space-y-2"
-            style={{ height: `${IDEATION_FEED_HEIGHT_REM}rem` }}
-          >
-            {messages.map((m, i) => (
-              <div
-                key={`ideation-${i}`}
-                className={`flex ${m.sender === "user" ? "justify-end" : "justify-start"} w-full`}
-              >
-                <div
-                  className={`px-3 py-2 text-sm rounded-2xl leading-5 shadow-sm break-words border
-          ${
-            m.sender === "user"
-              ? "bg-[#1d2c44] border-[#2f4b7c] text-blue-100"
-              : "bg-[#111a28] border-[#1f2b3c] text-gray-200"
-          }
-        `}
-                  style={{
-                    width: "fit-content",
-                    maxWidth: "75%",
-                    wordBreak: "break-word",
-                  }}
-                >
-                  {m.text}
-                </div>
-              </div>
-            ))}
-            <div ref={ideationEndRef} />
+          <div className="flex-1 bg-[#101a2b] text-white p-4 overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <p className="text-xs uppercase tracking-[0.2em] text-gray-400">📡 Live Stages</p>
+              <p className="text-[10px] text-gray-500">Timezone: {stageTimezoneLabel}</p>
+            </div>
+            {orderedStages.length ? (
+              <ol className="mt-3 space-y-3">
+                {orderedStages.map(([stageName, details], index) => {
+                  const timestamp = formatStageTime(resolveStageTimestamp(details));
+                  const status = resolveStageStatus(details);
+                  const note = resolveStageNote(details);
+                  const isCompleted = status === "completed";
+                  const isActive = !isCompleted && Boolean(timestamp);
+                  return (
+                    <li
+                      key={`stage-${stageName}`}
+                      className="flex items-start gap-3 rounded-lg border border-[#1c2940] bg-[#0c1524]/60 p-3"
+                    >
+                      <div
+                        className={`mt-0.5 flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${isCompleted ? "bg-green-500/20 text-green-300" : isActive ? "bg-blue-500/20 text-blue-200" : "bg-gray-600/30 text-gray-300"}`}
+                      >
+                        {index + 1}
+                      </div>
+                      <div className="flex-1 space-y-1">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold capitalize text-blue-50">
+                              {formatStageLabel(stageName)}
+                            </p>
+                            <p className="text-[11px] uppercase tracking-wide text-gray-500">{status}</p>
+                          </div>
+                          {timestamp ? (
+                            <p className="text-xs text-blue-200">{timestamp}</p>
+                          ) : (
+                            <p className="text-xs text-gray-500">대기 중</p>
+                          )}
+                        </div>
+                        {note && <p className="text-xs text-gray-300 leading-relaxed">{note}</p>}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            ) : (
+              <p className="mt-6 text-sm text-gray-400">Stage 데이터가 없습니다.</p>
+            )}
           </div>
         </div>
 
