@@ -91,6 +91,7 @@ export default function ChatWidget({ onClose }: ChatWidgetProps) {
               height={160}
               className="select-none pointer-events-none"
               priority={false}
+              unoptimized
             />
             <div className="text-center">
               <p className="text-sm font-semibold text-blue-100 tracking-wide uppercase">Ideation</p>
