@@ -1,4 +1,4 @@
-# Cherry Deploy Project (가제)
+# Cherry Deploy Project
 
 SoftBank Hackathon 2025 (Team Cherry) - DevOps Deployment Dashboard with AI Chatbot
 
