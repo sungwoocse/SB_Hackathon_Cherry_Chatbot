@@ -86,6 +86,8 @@ export default function Page() {
   const [startingDeploy, setStartingDeploy] = useState(false);
   const [chatVisible, setChatVisible] = useState(false);
   const [confirmingRollback, setConfirmingRollback] = useState(false);
+  const [loginUserId, setLoginUserId] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
 
   const blueGreenInfo = useMemo<BlueGreenPlan | null>(() => {
     if (previewDetail?.blue_green_plan) return previewDetail.blue_green_plan;
@@ -515,20 +517,51 @@ export default function Page() {
             <p className="text-sm text-gray-400">Cherry Deploy</p>
             <p className="text-2xl font-semibold text-white">Safe Deployment with a Single Click</p>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={handleOpenPreflight}
-              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm font-semibold"
+          <div className="flex flex-wrap items-center gap-2">
+            <form
+              className="flex flex-wrap items-center gap-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                setLoginUserId("");
+                setLoginPassword("");
+              }}
             >
-              Prepare Deploy
-            </button>
-            <button
-              onClick={handleRollback}
-              disabled={rollbacking}
-              className={`px-4 py-2 rounded-lg border text-sm font-semibold ${rollbacking ? "border-gray-600 text-gray-400" : "border-red-500 text-red-300 hover:bg-red-500/10"}`}
-            >
-              {rollbacking ? "Rolling Back..." : "Rollback"}
-            </button>
+              <input
+                type="text"
+                value={loginUserId}
+                onChange={(event) => setLoginUserId(event.target.value)}
+                placeholder="ID"
+                className="rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <input
+                type="password"
+                value={loginPassword}
+                onChange={(event) => setLoginPassword(event.target.value)}
+                placeholder="PW"
+                className="rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-lg border border-gray-600 text-sm font-semibold text-gray-200 hover:bg-gray-800"
+              >
+                로그인
+              </button>
+            </form>
+            <div className="flex gap-2">
+              <button
+                onClick={handleOpenPreflight}
+                className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm font-semibold"
+              >
+                Prepare Deploy
+              </button>
+              <button
+                onClick={handleRollback}
+                disabled={rollbacking}
+                className={`px-4 py-2 rounded-lg border text-sm font-semibold ${rollbacking ? "border-gray-600 text-gray-400" : "border-red-500 text-red-300 hover:bg-red-500/10"}`}
+              >
+                {rollbacking ? "Rolling Back..." : "Rollback"}
+              </button>
+            </div>
           </div>
         </div>
 
