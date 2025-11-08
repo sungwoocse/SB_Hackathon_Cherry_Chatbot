@@ -11,6 +11,7 @@ import type {
   DeployTaskSummary,
   DeployTimelineEntry,
   HealthStatusResponse,
+  RiskAssessment,
 } from "@/types/deploy";
 
 const CURRENT_TASK_STORAGE_KEY = "cherry.currentTaskId";
@@ -84,13 +85,6 @@ export default function Page() {
   const [chatVisible, setChatVisible] = useState(false);
   const [confirmingRollback, setConfirmingRollback] = useState(false);
 
-
-  const warnings = previewDetail?.warnings ?? [];
-  const previewTimeline = previewDetail?.timeline_preview ?? [];
-  const liveStages = Object.entries(currentStages || {});
-  const llmSummary = previewDetail?.llm_preview?.summary ?? null;
-  const riskAssessment = previewDetail?.risk_assessment ?? null;
-
   const blueGreenInfo = useMemo<BlueGreenPlan | null>(() => {
     if (previewDetail?.blue_green_plan) return previewDetail.blue_green_plan;
     if (previewDetail?.task_context?.summary?.blue_green) {
@@ -98,6 +92,51 @@ export default function Page() {
     }
     return healthInfo?.blue_green ?? null;
   }, [previewDetail, healthInfo]);
+
+  const mergedPreflightWarnings = useMemo(() => {
+    if (!preflightData) return [];
+    const notes = preflightData.risk_assessment?.notes;
+    const noteList = Array.isArray(notes) ? notes : [];
+    const combined = [...preflightData.warnings, ...noteList].filter(
+      (msg): msg is string => typeof msg === "string" && msg.trim().length > 0
+    );
+    return Array.from(new Set(combined));
+  }, [preflightData]);
+
+  const warnings = previewDetail?.warnings ?? [];
+  const previewTimeline = previewDetail?.timeline_preview ?? [];
+  const liveStages = Object.entries(currentStages || {});
+  const llmSummary = previewDetail?.llm_preview?.summary ?? null;
+  const riskAssessment: RiskAssessment | null = previewDetail?.risk_assessment ?? null;
+  const preflightTimeline = useMemo(() => preflightData?.timeline_preview ?? [], [preflightData]);
+  const preflightEstimatedSeconds = useMemo<number | null>(() => {
+    if (!preflightTimeline.length) return null;
+    let total = 0;
+    preflightTimeline.forEach((entry) => {
+      const eta = typeof entry.expected_seconds === "number" ? entry.expected_seconds : null;
+      const metadata = (entry.metadata || {}) as Record<string, unknown>;
+      const metadataEta = typeof metadata["eta_seconds"] === "number" ? (metadata["eta_seconds"] as number) : null;
+      const candidate = eta ?? metadataEta;
+      if (typeof candidate === "number" && !Number.isNaN(candidate)) {
+        total += candidate;
+      }
+    });
+    return total > 0 ? total : null;
+  }, [preflightTimeline]);
+  const preflightRuntimeMinutes = preflightEstimatedSeconds ? Math.max(1, Math.round(preflightEstimatedSeconds / 60)) : null;
+  const preflightCommands = preflightData?.commands ?? [];
+  const preflightHighlights = preflightData?.llm_preview?.highlights ?? [];
+  const preflightLlmRisks = preflightData?.llm_preview?.risks ?? [];
+  const preflightRiskAssessment: RiskAssessment | null = preflightData?.risk_assessment ?? null;
+  const preflightBlueGreenPlan = preflightData?.blue_green_plan ?? null;
+  const preflightFilesChanged =
+    typeof preflightRiskAssessment?.files_changed === "number"
+      ? preflightRiskAssessment.files_changed
+      : null;
+  const preflightDowntimeNote =
+    typeof preflightRiskAssessment?.downtime === "string" ? preflightRiskAssessment.downtime : null;
+  const preflightRollbackNote =
+    typeof preflightRiskAssessment?.rollback === "string" ? preflightRiskAssessment.rollback : null;
 
   const fetchPreview = async (task?: string | null) => {
     try {
@@ -348,6 +387,31 @@ export default function Page() {
       hour12: true,
     });
     return formatter.format(new Date(value));
+  };
+
+  const formatDurationLabel = (seconds?: number | null) => {
+    if (typeof seconds !== "number" || Number.isNaN(seconds)) return null;
+    if (seconds >= 60) {
+      const minutes = Math.round(seconds / 60);
+      return `약 ${minutes}분`;
+    }
+    return `약 ${Math.max(1, Math.round(seconds))}초`;
+  };
+
+  const renderRiskBadge = (risk?: string | null) => {
+    if (!risk) return null;
+    const normalized = risk.trim().toLowerCase();
+    const palette: Record<string, string> = {
+      low: "border-green-500/60 text-green-200 bg-green-900/30",
+      medium: "border-yellow-500/60 text-yellow-200 bg-yellow-900/30",
+      high: "border-red-500/60 text-red-200 bg-red-900/30",
+    };
+    const tone = palette[normalized] || "border-gray-500/60 text-gray-200 bg-gray-800/60";
+    return (
+      <span className={`text-[11px] uppercase tracking-wide px-3 py-1 rounded-full border ${tone}`}>
+        {normalized.toUpperCase()}
+      </span>
+    );
   };
 
   const resolveSlotLabel = (value?: string | null) => {
@@ -711,54 +775,222 @@ export default function Page() {
             ) : preflightError ? (
               <p className="text-sm text-red-400">{preflightError}</p>
             ) : preflightData ? (
-              <div className="space-y-4 max-h-[60vh] overflow-auto pr-1">
-                <section>
-                  <p className="text-xs text-gray-500 mb-1">변경 요약</p>
-                  <p className="text-gray-100 whitespace-pre-line">{preflightData.llm_preview?.summary || "LLM 요약이 없습니다."}</p>
-                </section>
-                {preflightData.llm_preview?.risks?.length ? (
-                  <section>
-                    <p className="text-xs text-gray-500 mb-1">위험 요소</p>
-                    <ul className="list-disc list-inside text-sm text-yellow-200 space-y-1">
-                      {preflightData.llm_preview.risks.map((item, idx) => (
-                        <li key={`preflight-risk-${idx}`}>{item}</li>
-                      ))}
-                    </ul>
-                  </section>
-                ) : null}
-                <section>
-                  <p className="text-xs text-gray-500 mb-1">실행 명령</p>
-                  <ol className="list-decimal list-inside text-xs text-gray-100 space-y-1 bg-gray-950/60 p-3 rounded border border-gray-800">
-                    {(preflightData.commands || []).map((cmd, idx) => (
-                      <li key={`preflight-cmd-${idx}`}>{cmd}</li>
-                    ))}
-                  </ol>
-                </section>
-                {preflightData.risk_assessment && (
-                  <section>
-                    <p className="text-xs text-gray-500 mb-1">리스크 세부 정보</p>
-                    <ul className="space-y-2 bg-gray-950/60 p-3 rounded border border-gray-800 text-sm text-gray-200">
-                      {Object.entries(preflightData.risk_assessment).map(([key, value]) => (
-                        <li key={`preflight-riskdetail-${key}`}>
-                          <p className="text-xs uppercase tracking-wide text-gray-500">{key}</p>
-                          <p className="whitespace-pre-wrap">{formatInfoValue(value)}</p>
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
-                )}
-                <section>
-                  <p className="text-xs text-gray-500 mb-1">Blue/Green 계획</p>
-                  {preflightData.blue_green_plan ? (
-                    <div className="text-sm text-gray-200 space-y-1">
-                      <p>Active Slot: {preflightData.blue_green_plan.active_slot}</p>
-                      <p>다음 전환: {preflightData.blue_green_plan.next_cutover_target || "미정"}</p>
+              <div className="space-y-5 max-h-[65vh] overflow-auto pr-1">
+                <section className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-2xl border border-gray-800 bg-gray-950/50 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-blue-300">Gemini Diff Review</p>
+                        <p className="text-lg font-semibold text-white mt-1">변경 요약</p>
+                      </div>
+                      {renderRiskBadge(preflightRiskAssessment?.risk_level ?? null)}
                     </div>
-                  ) : (
-                    <p className="text-sm text-gray-500">계획 정보가 없습니다.</p>
-                  )}
+                    <p className="mt-3 text-sm text-gray-100 whitespace-pre-line leading-relaxed">
+                      {preflightData.llm_preview?.summary || "LLM 요약이 없습니다."}
+                    </p>
+                    {preflightHighlights.length ? (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {preflightHighlights.map((item, idx) => (
+                          <span
+                            key={`preflight-highlight-${idx}`}
+                            className="px-3 py-1 rounded-full border border-blue-500/40 bg-blue-500/10 text-xs text-blue-100"
+                          >
+                            {item}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                    {preflightLlmRisks.length ? (
+                      <div className="mt-4">
+                        <p className="text-xs uppercase tracking-wide text-yellow-300">Gemini 위험 포인트</p>
+                        <ul className="mt-2 list-disc list-inside text-sm text-yellow-100 space-y-1">
+                          {preflightLlmRisks.map((item, idx) => (
+                            <li key={`preflight-llm-risk-${idx}`}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="rounded-2xl border border-gray-800 bg-gray-950/40 p-4">
+                    <p className="text-xs uppercase tracking-wide text-gray-500">배포 준비 지표</p>
+                    <div className="mt-3 grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-[11px] uppercase tracking-wide text-gray-500">변경 파일</p>
+                        <p className="text-2xl font-semibold text-white">{preflightFilesChanged ?? "-"}</p>
+                        <p className="text-[11px] text-gray-500 mt-1">git diff 기준</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] uppercase tracking-wide text-gray-500">예상 소요</p>
+                        <p className="text-2xl font-semibold text-white">
+                          {preflightRuntimeMinutes !== null ? `약 ${preflightRuntimeMinutes}분` : "정보 없음"}
+                        </p>
+                        <p className="text-[11px] text-gray-500 mt-1">stage 추정치</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] uppercase tracking-wide text-gray-500">예상 다운타임</p>
+                        <p className="text-sm font-semibold text-white leading-snug">
+                          {preflightDowntimeNote || "Blue/Green 기반 최소화"}
+                        </p>
+                        <p className="text-[11px] text-gray-500 mt-1">LLM 추정</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] uppercase tracking-wide text-gray-500">롤백 경로</p>
+                        <p className="text-sm font-semibold text-white leading-snug">
+                          {preflightRollbackNote || "심볼릭 링크 스왑 준비됨"}
+                        </p>
+                        <p className="text-[11px] text-gray-500 mt-1">즉시 전환 가능</p>
+                      </div>
+                    </div>
+                    <div className="mt-4 text-xs text-gray-400 space-y-1">
+                      <p>
+                        브랜치: <span className="text-gray-100 font-semibold">{preflightData.current_branch}</span>
+                      </p>
+                      <p className="break-all">
+                        Repo: <span className="text-gray-100">{preflightData.target_repo}</span>
+                      </p>
+                      {preflightData.frontend_project_path && (
+                        <p className="break-all">
+                          Build Path: <span className="text-gray-100">{preflightData.frontend_project_path}</span>
+                        </p>
+                      )}
+                      {preflightData.frontend_output_path && (
+                        <p className="break-all">
+                          Export Path: <span className="text-gray-100">{preflightData.frontend_output_path}</span>
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </section>
-                <section className="rounded bg-yellow-900/20 border border-yellow-700 p-3 text-sm text-yellow-100">
+                <section className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-2xl border border-gray-800 bg-gray-950/40 p-4">
+                    <p className="text-xs uppercase tracking-wide text-gray-500">예상 Stage Timeline</p>
+                    {preflightTimeline.length ? (
+                      <ul className="mt-3 space-y-3">
+                        {preflightTimeline.map((entry, idx) => {
+                          const metadata = (entry.metadata || {}) as Record<string, unknown>;
+                          const checksRaw = metadata.checks;
+                          const checks = Array.isArray(checksRaw)
+                            ? (checksRaw.filter((check): check is string => typeof check === "string") as string[])
+                            : [];
+                          const etaFromMeta = typeof metadata.eta_seconds === "number" ? metadata.eta_seconds : undefined;
+                          const etaLabel = formatDurationLabel(entry.expected_seconds ?? etaFromMeta);
+                          const plan = typeof metadata.plan === "string" ? metadata.plan : null;
+                          const statusTone =
+                            entry.status === "completed"
+                              ? "border-green-500/60 text-green-200"
+                              : entry.status === "upcoming"
+                              ? "border-blue-500/60 text-blue-200"
+                              : "border-gray-600 text-gray-300";
+                          return (
+                            <li key={`preflight-stage-${entry.stage}`} className="flex gap-3">
+                              <div className={`flex h-8 w-8 items-center justify-center rounded-full border ${statusTone}`}>
+                                {idx + 1}
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm font-semibold text-white">{entry.label}</p>
+                                  {etaLabel && <span className="text-xs text-gray-400">{etaLabel}</span>}
+                                </div>
+                                <p className="text-[11px] uppercase tracking-wide text-gray-500">
+                                  {entry.stage.replace(/_/g, " ").toUpperCase()}
+                                </p>
+                                {plan && <p className="text-xs text-gray-300 mt-1">{plan}</p>}
+                                {checks.length ? (
+                                  <ul className="mt-1 space-y-0.5 text-xs text-gray-400">
+                                    {checks.map((check, checkIdx) => (
+                                      <li
+                                        key={`preflight-stage-${entry.stage}-check-${checkIdx}`}
+                                        className="flex items-start gap-1"
+                                      >
+                                        <span className="text-blue-400 mt-0.5">▹</span>
+                                        <span>{check}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : null}
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : (
+                      <p className="mt-3 text-sm text-gray-500">예상 타임라인을 가져오지 못했습니다.</p>
+                    )}
+                  </div>
+                  <div className="rounded-2xl border border-gray-800 bg-gray-950/40 p-4">
+                    <p className="text-xs uppercase tracking-wide text-gray-500">실행 명령 시퀀스</p>
+                    {preflightCommands.length ? (
+                      <ol className="mt-3 space-y-2 text-xs text-gray-100">
+                        {preflightCommands.map((cmd, idx) => (
+                          <li
+                            key={`preflight-cmd-${idx}`}
+                            className="rounded border border-gray-800 bg-gray-900/40 p-3 flex items-start gap-3"
+                          >
+                            <span className="text-[10px] text-gray-500 pt-0.5">#{idx + 1}</span>
+                            <code className="text-[13px] leading-relaxed break-all">{cmd}</code>
+                          </li>
+                        ))}
+                      </ol>
+                    ) : (
+                      <p className="mt-3 text-sm text-gray-500">명령 플랜이 없습니다.</p>
+                    )}
+                  </div>
+                </section>
+                <section className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-2xl border border-gray-800 bg-gray-950/40 p-4">
+                    <p className="text-xs uppercase tracking-wide text-gray-500">자동 경고 & 체커</p>
+                    {mergedPreflightWarnings.length ? (
+                      <ul className="mt-3 space-y-2">
+                        {mergedPreflightWarnings.map((warn, idx) => (
+                          <li
+                            key={`preflight-warning-${idx}`}
+                            className="rounded border border-yellow-700 bg-yellow-900/25 px-3 py-2 text-sm text-yellow-100"
+                          >
+                            {warn}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-3 text-sm text-gray-500">경고 데이터가 없습니다.</p>
+                    )}
+                  </div>
+                  <div className="rounded-2xl border border-gray-800 bg-gray-950/40 p-4">
+                    <p className="text-xs uppercase tracking-wide text-gray-500">Blue/Green 준비 상태</p>
+                    {preflightBlueGreenPlan ? (
+                      <dl className="mt-3 space-y-2 text-sm text-gray-200">
+                        {resolveSlotLabel(preflightBlueGreenPlan.active_slot) && (
+                          <div>
+                            <dt className="text-xs uppercase tracking-wide text-gray-500">현재 서비스</dt>
+                            <dd className="text-white font-semibold">{preflightBlueGreenPlan.active_slot}</dd>
+                          </div>
+                        )}
+                        {resolveSlotLabel(preflightBlueGreenPlan.standby_slot) && (
+                          <div>
+                            <dt className="text-xs uppercase tracking-wide text-gray-500">대기 슬롯</dt>
+                            <dd>{preflightBlueGreenPlan.standby_slot}</dd>
+                          </div>
+                        )}
+                        {resolveSlotLabel(preflightBlueGreenPlan.next_cutover_target) && (
+                          <div>
+                            <dt className="text-xs uppercase tracking-wide text-gray-500">다음 컷오버</dt>
+                            <dd>{preflightBlueGreenPlan.next_cutover_target}</dd>
+                          </div>
+                        )}
+                        <div>
+                          <dt className="text-xs uppercase tracking-wide text-gray-500">마지막 컷오버</dt>
+                          <dd>
+                            {preflightBlueGreenPlan.last_cutover_at
+                              ? formatDateTime(preflightBlueGreenPlan.last_cutover_at, preflightData.timezone || "Asia/Seoul")
+                              : "기록 없음"}
+                          </dd>
+                        </div>
+                      </dl>
+                    ) : (
+                      <p className="mt-3 text-sm text-gray-500">Blue/Green 계획 정보가 없습니다.</p>
+                    )}
+                  </div>
+                </section>
+                <section className="rounded border border-yellow-700 bg-yellow-900/30 p-4 text-sm text-yellow-100">
                   실제 배포 버튼을 누르면 dev 서버를 재기동하므로 화면이 잠시 리셋될 수 있습니다. 창을 닫아도 작업은 계속됩니다.
                 </section>
               </div>

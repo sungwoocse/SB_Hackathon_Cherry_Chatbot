@@ -33,6 +33,14 @@ export interface DeployResponse {
   dev_server_restart_planned: boolean;
 }
 
+export interface RiskAssessment {
+  risk_level?: string;
+  files_changed?: number;
+  downtime?: string;
+  rollback?: string;
+  notes?: string[] | null;
+}
+
 export interface DeployStatusResponse {
   task_id: string;
   status: DeployStatusEnum;
@@ -42,8 +50,7 @@ export interface DeployStatusResponse {
   completed_at?: string | null;
   error_log?: string | null;
   failure_context?: Record<string, unknown> | null;
-  cost_estimate?: Record<string, unknown> | null;
-  risk_assessment?: Record<string, unknown> | null;
+  risk_assessment?: RiskAssessment | null;
   llm_preview?: LLMPreview | null;
   blue_green_plan?: BlueGreenPlan | null;
   timezone?: string | null;
@@ -55,8 +62,7 @@ export interface DeployPreviewResponse {
   frontend_project_path?: string | null;
   frontend_output_path?: string | null;
   commands: string[];
-  risk_assessment: Record<string, unknown>;
-  cost_estimate: Record<string, unknown>;
+  risk_assessment: RiskAssessment;
   llm_preview?: LLMPreview | null;
   timeline_preview: DeployTimelineEntry[];
   warnings: string[];
