@@ -18,6 +18,9 @@ const STAGE_DISPLAY_SEQUENCE = [
   "completed",
   "failed",
 ] as const;
+const MAX_VISIBLE_STAGE_ROWS = 4;
+const STAGE_ROW_HEIGHT_REM = 2.8;
+const STAGE_LIST_MAX_HEIGHT_REM = MAX_VISIBLE_STAGE_ROWS * STAGE_ROW_HEIGHT_REM;
 
 type StageName = (typeof STAGE_DISPLAY_SEQUENCE)[number] | string;
 
@@ -177,7 +180,10 @@ export default function ChatWidget({ onClose, stages = [], stageTimezone = "Asia
               <p className="text-[10px] text-gray-500">Timezone: {stageTimezoneLabel}</p>
             </div>
             {orderedStages.length ? (
-              <ol className="mt-3 space-y-3">
+              <ol
+                className="mt-3 space-y-2 text-[13px] leading-tight"
+                style={{ maxHeight: `${STAGE_LIST_MAX_HEIGHT_REM}rem`, overflowY: "auto" }}
+              >
                 {orderedStages.map(([stageName, details], index) => {
                   const timestamp = formatStageTime(resolveStageTimestamp(details));
                   const status = resolveStageStatus(details);
@@ -187,28 +193,34 @@ export default function ChatWidget({ onClose, stages = [], stageTimezone = "Asia
                   return (
                     <li
                       key={`stage-${stageName}`}
-                      className="flex items-start gap-3 rounded-lg border border-[#1c2940] bg-[#0c1524]/60 p-3"
+                      className="flex items-start gap-2.5 rounded-lg border border-[#1c2940] bg-[#0c1524]/60 p-2.5"
                     >
                       <div
-                        className={`mt-0.5 flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${isCompleted ? "bg-green-500/20 text-green-300" : isActive ? "bg-blue-500/20 text-blue-200" : "bg-gray-600/30 text-gray-300"}`}
+                        className={`mt-0.5 flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold ${
+                          isCompleted
+                            ? "bg-green-500/20 text-green-300"
+                            : isActive
+                            ? "bg-blue-500/20 text-blue-200"
+                            : "bg-gray-600/30 text-gray-300"
+                        }`}
                       >
                         {index + 1}
                       </div>
                       <div className="flex-1 space-y-1">
                         <div className="flex items-center justify-between gap-3">
                           <div>
-                            <p className="text-sm font-semibold capitalize text-blue-50">
+                            <p className="text-[13px] font-semibold capitalize text-blue-50">
                               {formatStageLabel(stageName)}
                             </p>
-                            <p className="text-[11px] uppercase tracking-wide text-gray-500">{status}</p>
+                            <p className="text-[10px] uppercase tracking-wide text-gray-500">{status}</p>
                           </div>
                           {timestamp ? (
-                            <p className="text-xs text-blue-200">{timestamp}</p>
+                            <p className="text-[11px] text-blue-200">{timestamp}</p>
                           ) : (
-                            <p className="text-xs text-gray-500">대기 중</p>
+                            <p className="text-[11px] text-gray-500">대기 중</p>
                           )}
                         </div>
-                        {note && <p className="text-xs text-gray-300 leading-relaxed">{note}</p>}
+                        {note && <p className="text-[11px] text-gray-300 leading-snug">{note}</p>}
                       </div>
                     </li>
                   );
