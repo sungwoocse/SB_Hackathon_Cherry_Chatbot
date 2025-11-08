@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import Character from "./Character";
 import { API_BASE_URL, JSON_HEADERS } from "@/lib/api";
 
 interface ChatWidgetProps {
@@ -10,9 +9,7 @@ interface ChatWidgetProps {
 export default function ChatWidget({ onClose }: ChatWidgetProps) {
   const POPUP_WIDTH_REM = 44; // 2.2x 기존 20rem 폭
   const POPUP_HEIGHT_REM = 24; // 기존 세로 크기 유지
-  const HEADER_HEIGHT_REM = 2.5;
-  const INPUT_HEIGHT_REM = 3.25;
-  const BODY_HEIGHT_REM = POPUP_HEIGHT_REM - HEADER_HEIGHT_REM - INPUT_HEIGHT_REM;
+  const HEADER_HEIGHT_REM = 3; // 1.2x 높이 확보
   const [status, setStatus] = useState<"idle" | "talking" | "success" | "failed">("idle");
   const [messages, setMessages] = useState<{ sender: "user" | "bot"; text: string }[]>([
     { sender: "bot", text: "안녕하세요! 무엇을 도와드릴까요?" },
@@ -80,17 +77,17 @@ export default function ChatWidget({ onClose }: ChatWidgetProps) {
 
   return (
     <>
-      {/* ✅ 캐릭터 (왼쪽 하단 고정, 상태 유지) */}
-      <Character status={status} />
-
-      {/* ✅ 우측 하단 챗봇 팝업 (디자인 복원) */}
+      {/* ✅ 우측 하단 챗봇 팝업 */}
       <div className="fixed bottom-6 right-6 z-[9999] pointer-events-auto select-none">
         <div
-          className="rounded-xl shadow-2xl border border-[#2c3d55] overflow-hidden animate-fade-in origin-bottom-right"
+          className="rounded-xl shadow-2xl border border-[#2c3d55] overflow-hidden animate-fade-in origin-bottom-right flex flex-col"
           style={{ width: `${POPUP_WIDTH_REM}rem`, height: `${POPUP_HEIGHT_REM}rem` }}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-2 bg-[#223145] text-blue-200 border-b border-[#2c3d55]">
+          <div
+            className="flex items-center justify-between px-4 bg-[#223145] text-blue-200 border-b border-[#2c3d55]"
+            style={{ height: `${HEADER_HEIGHT_REM}rem` }}
+          >
             <div className="font-semibold flex items-center gap-2">
               <span className="text-lg">🤖</span>
               <span>Chatbot</span>
@@ -104,10 +101,7 @@ export default function ChatWidget({ onClose }: ChatWidgetProps) {
             </button>
           </div>
           {/* Body */}
-          <div
-            className="bg-[#1e2a3a] text-white p-3 overflow-y-auto space-y-2"
-            style={{ height: `${BODY_HEIGHT_REM}rem` }}
-          >
+          <div className="flex-1 bg-[#1e2a3a] text-white p-3 overflow-y-auto space-y-2">
             {messages.map((m, i) => (
               <div
                 key={i}
