@@ -950,7 +950,13 @@ export default function Page() {
         )}
       </motion.div>
 
-      {chatVisible && <ChatWidget onClose={() => setChatVisible(false)} />}
+      {chatVisible && (
+        <ChatWidget
+          onClose={() => setChatVisible(false)}
+          stages={liveStages}
+          stageTimezone={taskTimezone}
+        />
+      )}
       {!chatVisible && (
         <button
           type="button"

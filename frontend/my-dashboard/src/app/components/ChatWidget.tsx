@@ -1,13 +1,27 @@
 "use client";
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { API_BASE_URL, JSON_HEADERS } from "@/lib/api";
 
 interface ChatWidgetProps {
   onClose?: () => void;
+  stages?: Array<[string, Record<string, unknown>]>;
+  stageTimezone?: string;
 }
 
-export default function ChatWidget({ onClose }: ChatWidgetProps) {
+const STAGE_DISPLAY_SEQUENCE = [
+  "running_clone",
+  "running_build",
+  "running_cutover",
+  "running_observability",
+  "running_post_checks",
+  "completed",
+  "failed",
+] as const;
+
+type StageName = (typeof STAGE_DISPLAY_SEQUENCE)[number] | string;
+
+export default function ChatWidget({ onClose, stages = [], stageTimezone = "Asia/Seoul" }: ChatWidgetProps) {
   const POPUP_WIDTH_REM = 44; // 2.2x 기존 20rem 폭
   const POPUP_HEIGHT_REM = 24; // 기존 세로 크기 유지
   const IDEATION_WIDTH_REM = POPUP_WIDTH_REM; // 동일 폭으로 왼쪽 확장
@@ -21,6 +35,48 @@ export default function ChatWidget({ onClose }: ChatWidgetProps) {
   const [sending, setSending] = useState(false);
   const primaryEndRef = useRef<HTMLDivElement | null>(null);
   const ideationEndRef = useRef<HTMLDivElement | null>(null);
+  const orderedStages = useMemo(() => {
+    const sequenceSet = new Set<string>(STAGE_DISPLAY_SEQUENCE);
+    const stageMap = new Map<string, Record<string, unknown>>();
+    stages.forEach(([name, details]) => {
+      stageMap.set(name, details || {});
+    });
+    const ordered: Array<[StageName, Record<string, unknown>]> = [];
+    STAGE_DISPLAY_SEQUENCE.forEach((stage) => {
+      if (stageMap.has(stage)) {
+        ordered.push([stage, stageMap.get(stage)!]);
+      }
+    });
+    stages.forEach(([stage, details]) => {
+      if (!sequenceSet.has(stage)) {
+        ordered.push([stage as StageName, details || {}]);
+      }
+    });
+    return ordered;
+  }, [stages]);
+
+  const formatStageLabel = (stage: StageName) => stage.replace(/_/g, " ");
+
+  const resolveStageTimestamp = (details: Record<string, unknown>) => {
+    const value = details?.["timestamp"];
+    return typeof value === "string" ? value : null;
+  };
+
+  const formatStageTime = (value: unknown) => {
+    if (typeof value !== "string" || !value) return null;
+    try {
+      const formatter = new Intl.DateTimeFormat("ko-KR", {
+        timeZone: stageTimezone,
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
+      return formatter.format(new Date(value));
+    } catch {
+      return null;
+    }
+  };
+  const stageTimezoneLabel = stageTimezone === "Asia/Seoul" ? "KST" : stageTimezone;
 
   // ✅ 새 메시지마다 하단으로 스크롤
   useEffect(() => {
@@ -86,7 +142,7 @@ export default function ChatWidget({ onClose }: ChatWidgetProps) {
           style={{ width: `${IDEATION_WIDTH_REM}rem`, height: `${POPUP_HEIGHT_REM}rem` }}
         >
           <div
-            className="relative bg-[#17243a] border-b border-[#2c3d55] p-5 overflow-hidden"
+            className="relative bg-[#17243a] border-b border-[#2c3d55] p-5 overflow-hidden flex flex-col justify-end"
             style={{ height: `${IDEATION_HEADER_HEIGHT_REM}rem` }}
           >
             <Image
@@ -107,11 +163,43 @@ export default function ChatWidget({ onClose }: ChatWidgetProps) {
               priority={false}
               unoptimized
             />
-            <div className="text-left text-blue-50 pr-28">
-              <p className="text-sm font-semibold tracking-wide uppercase">Ideation</p>
-              <p className="text-xs text-gray-300 leading-relaxed">
-                아이디어 보드에서 대화 흐름을 살펴보세요.
-              </p>
+            <div className="relative z-10 space-y-3 pr-28">
+              <div className="text-left text-blue-50">
+                <p className="text-sm font-semibold tracking-wide uppercase">Deploy Status</p>
+                <p className="text-xs text-gray-300 leading-relaxed">
+                  진행 중인 Stage를 순차적으로 모니터링하세요.
+                </p>
+              </div>
+              <div className="bg-[#0d1423]/80 border border-[#24334d] rounded-lg p-3 text-xs text-blue-50 max-h-48 overflow-y-auto">
+                <p className="text-[11px] uppercase tracking-wide text-gray-400 mb-2">📡 Live Stages</p>
+                {orderedStages.length ? (
+                  <ul className="space-y-1.5">
+                    {orderedStages.map(([stageName, details]) => {
+                      const timestamp = formatStageTime(resolveStageTimestamp(details));
+                      return (
+                        <li key={`stage-${stageName}`} className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`w-2 h-2 rounded-full ${
+                                timestamp ? "bg-blue-400" : "bg-gray-600"
+                              }`}
+                            />
+                            <span className="font-semibold capitalize">{formatStageLabel(stageName)}</span>
+                          </div>
+                          {timestamp ? (
+                            <span className="text-[10px] text-gray-400">{timestamp}</span>
+                          ) : (
+                            <span className="text-[10px] text-gray-600">대기 중</span>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="text-[11px] text-gray-400">Stage 데이터가 없습니다.</p>
+                )}
+                <p className="text-[10px] text-gray-500 mt-2">Timezone: {stageTimezoneLabel}</p>
+              </div>
             </div>
           </div>
           <div
