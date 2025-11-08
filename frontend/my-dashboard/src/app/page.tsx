@@ -715,12 +715,6 @@ export default function Page() {
           </div>
         </div>
 
-        {!isLoggedIn && !authChecking && (
-          <p className="mt-4 text-sm text-yellow-300">
-            cherry / coffee 계정으로 로그인해야 배포 기능을 사용할 수 있습니다.
-          </p>
-        )}
-
         <p className="mt-4 text-gray-200 whitespace-pre-line">
           {llmSummary || "배포 준비” 버튼을 눌러 최신 변경 요약과 위험 요소를 확인한 뒤 실제 배포를 실행하세요."}
         </p>
