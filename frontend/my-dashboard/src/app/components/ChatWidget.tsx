@@ -8,6 +8,11 @@ interface ChatWidgetProps {
 }
 
 export default function ChatWidget({ onClose }: ChatWidgetProps) {
+  const POPUP_WIDTH_REM = 44; // 2.2x 기존 20rem 폭
+  const POPUP_HEIGHT_REM = 24; // 기존 세로 크기 유지
+  const HEADER_HEIGHT_REM = 2.5;
+  const INPUT_HEIGHT_REM = 3.25;
+  const BODY_HEIGHT_REM = POPUP_HEIGHT_REM - HEADER_HEIGHT_REM - INPUT_HEIGHT_REM;
   const [status, setStatus] = useState<"idle" | "talking" | "success" | "failed">("idle");
   const [messages, setMessages] = useState<{ sender: "user" | "bot"; text: string }[]>([
     { sender: "bot", text: "안녕하세요! 무엇을 도와드릴까요?" },
@@ -80,7 +85,10 @@ export default function ChatWidget({ onClose }: ChatWidgetProps) {
 
       {/* ✅ 우측 하단 챗봇 팝업 (디자인 복원) */}
       <div className="fixed bottom-6 right-6 z-[9999] pointer-events-auto select-none">
-        <div className="w-80 h-100 rounded-xl shadow-2xl border border-[#2c3d55] overflow-hidden animate-fade-in">
+        <div
+          className="rounded-xl shadow-2xl border border-[#2c3d55] overflow-hidden animate-fade-in origin-bottom-right"
+          style={{ width: `${POPUP_WIDTH_REM}rem`, height: `${POPUP_HEIGHT_REM}rem` }}
+        >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-2 bg-[#223145] text-blue-200 border-b border-[#2c3d55]">
             <div className="font-semibold flex items-center gap-2">
@@ -95,32 +103,32 @@ export default function ChatWidget({ onClose }: ChatWidgetProps) {
               ✕
             </button>
           </div>
-{/* Body */}
-<div className="h-[calc(24rem-2.5rem-3.25rem)] bg-[#1e2a3a] text-white p-3 overflow-y-auto space-y-2">
-  {messages.map((m, i) => (
-    <div
-      key={i}
-      className={`flex ${m.sender === "user" ? "justify-end" : "justify-start"} w-full`}
-    >
-      <div
-        className={`px-3 py-2 text-sm rounded-2xl leading-5 shadow-sm break-words 
-          ${m.sender === "user"
-            ? "bg-[#2563eb] text-white"
-            : "bg-[#2b3b52] text-gray-200"}
+          {/* Body */}
+          <div
+            className="bg-[#1e2a3a] text-white p-3 overflow-y-auto space-y-2"
+            style={{ height: `${BODY_HEIGHT_REM}rem` }}
+          >
+            {messages.map((m, i) => (
+              <div
+                key={i}
+                className={`flex ${m.sender === "user" ? "justify-end" : "justify-start"} w-full`}
+              >
+                <div
+                  className={`px-3 py-2 text-sm rounded-2xl leading-5 shadow-sm break-words 
+          ${m.sender === "user" ? "bg-[#2563eb] text-white" : "bg-[#2b3b52] text-gray-200"}
         `}
-        style={{
-          width: "fit-content",
-          maxWidth: "75%",
-          wordBreak: "break-word",
-        }}
-      >
-        {m.text}
-      </div>
-    </div>
-  ))}
-  <div ref={endRef} />
-</div>
-
+                  style={{
+                    width: "fit-content",
+                    maxWidth: "75%",
+                    wordBreak: "break-word",
+                  }}
+                >
+                  {m.text}
+                </div>
+              </div>
+            ))}
+            <div ref={endRef} />
+          </div>
 
             {/* Input */}
             <div className="bg-[#1b2736] border-t border-[#2c3d55] p-3 flex items-center gap-2">
