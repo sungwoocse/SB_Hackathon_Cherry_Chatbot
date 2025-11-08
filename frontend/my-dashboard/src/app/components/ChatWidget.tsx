@@ -134,6 +134,8 @@ export default function ChatWidget({
       return status === "completed" || status === "failed";
     });
   const heroCompleted = heroStatus === "completed" || heroStatus === "failed";
+  const deploySucceeded = heroStatus === "completed";
+  const deployFailed = heroStatus === "failed";
 
   useEffect(() => {
     if (hasStageData) {
@@ -254,20 +256,24 @@ export default function ChatWidget({
               </div>
             </div>
             <Image
-              src="/images/idle.png"
-              alt="Cherry assistant idle"
+              src="/images/bad.png"
+              alt="Cherry assistant warning"
               width={160}
               height={160}
-              className="select-none pointer-events-none absolute top-4 right-4"
+              className={`select-none pointer-events-none absolute top-4 right-4 transition-opacity duration-500 ${
+                deploySucceeded ? "opacity-0" : "opacity-100"
+              }`}
               priority={false}
               unoptimized
             />
             <Image
-              src="/images/success.png"
+              src="/images/good.png"
               alt="Cherry assistant success"
               width={140}
               height={140}
-              className="select-none pointer-events-none absolute bottom-4 left-4"
+              className={`select-none pointer-events-none absolute bottom-4 left-4 transition-opacity duration-500 ${
+                deployFailed ? "opacity-0" : "opacity-100"
+              }`}
               priority={false}
               unoptimized
             />
