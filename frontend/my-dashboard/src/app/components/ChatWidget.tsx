@@ -111,14 +111,7 @@ export default function ChatWidget({ onClose, stages = [], stageTimezone = "Asia
   const totalStages = orderedStages.length || 1;
   const progressRatio = Math.min(1, (latestStageIndex + 1) / totalStages);
   const progressPercent = Math.round(progressRatio * 100);
-  const currentStageLabel =
-    orderedStages[latestStageIndex]?.[0] ? formatStageLabel(orderedStages[latestStageIndex][0]) : "pending";
-  const statusTone =
-    progressPercent >= 100
-      ? "text-green-200"
-      : progressPercent > 0
-      ? "text-blue-200"
-      : "text-gray-400";
+  const gaugePercentRemaining = Math.max(0, 100 - progressPercent);
 
   const stageTimezoneLabel = stageTimezone === "Asia/Seoul" ? "KST" : stageTimezone;
 
@@ -186,17 +179,13 @@ export default function ChatWidget({ onClose, stages = [], stageTimezone = "Asia
         >
           <div className="relative bg-[#17243a] border-b border-[#2c3d55] p-5 overflow-hidden flex flex-col justify-end min-h-[13rem]">
             <div className="absolute top-4 left-1/2 -translate-x-1/2 w-1/4 min-w-[140px] max-w-[220px]">
-              <div className="bg-[#0d1423]/80 border border-[#24334d] rounded-xl px-4 py-2 text-center shadow-lg">
-                <p className={`text-[11px] font-semibold uppercase tracking-wide ${statusTone}`}>
-                  {currentStageLabel}
-                </p>
-                <div className="mt-2 h-1.5 bg-[#0b1120] rounded-full overflow-hidden">
+              <div className="bg-[#0d1423]/80 border border-[#24334d] rounded-xl px-4 py-2 shadow-lg">
+                <div className="h-1.5 bg-[#0b1120] rounded-full overflow-hidden">
                   <div
                     className="h-full bg-gradient-to-r from-blue-400 via-blue-500 to-blue-300 transition-all"
-                    style={{ width: `${progressPercent}%` }}
+                    style={{ width: `${gaugePercentRemaining}%` }}
                   />
                 </div>
-                <p className="text-[10px] text-gray-400 mt-1">{progressPercent}%</p>
               </div>
             </div>
             <Image
