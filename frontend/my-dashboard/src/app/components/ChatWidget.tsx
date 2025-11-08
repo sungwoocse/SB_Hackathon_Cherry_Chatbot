@@ -37,6 +37,7 @@ export default function ChatWidget({ onClose, stages = [], stageTimezone = "Asia
   const primaryEndRef = useRef<HTMLDivElement | null>(null);
   const [gaugeStartTimestamp, setGaugeStartTimestamp] = useState<number>(() => Date.now());
   const [gaugePercentRemaining, setGaugePercentRemaining] = useState<number>(100);
+  const [gaugeActive, setGaugeActive] = useState<boolean>(false);
   const orderedStages = useMemo(() => {
     const sequenceSet = new Set<string>(STAGE_DISPLAY_SEQUENCE);
     const stageMap = new Map<string, Record<string, unknown>>();
@@ -118,18 +119,36 @@ export default function ChatWidget({ onClose, stages = [], stageTimezone = "Asia
   const visibleStages = orderedStages.slice(stageWindowStart, stageWindowStart + STAGE_WINDOW_SIZE);
 
   useEffect(() => {
-    setGaugeStartTimestamp(Date.now());
-    setGaugePercentRemaining(100);
-  }, [progressedCount]);
+    if (!orderedStages.length) {
+      setGaugeActive(false);
+      setGaugePercentRemaining(100);
+      return;
+    }
+    if (progressedCount >= orderedStages.length && orderedStages.length > 0) {
+      setGaugeActive(false);
+      setGaugePercentRemaining(0);
+      return;
+    }
+    if (progressedCount > 0 && !gaugeActive) {
+      setGaugeActive(true);
+      setGaugeStartTimestamp(Date.now());
+      setGaugePercentRemaining(100);
+    }
+    if (progressedCount === 0 && gaugeActive) {
+      setGaugeActive(false);
+      setGaugePercentRemaining(100);
+    }
+  }, [gaugeActive, orderedStages.length, progressedCount]);
 
   useEffect(() => {
+    if (!gaugeActive) return;
     const interval = setInterval(() => {
       const elapsed = Date.now() - gaugeStartTimestamp;
       const ratio = Math.min(1, elapsed / GAUGE_DURATION_MS);
       setGaugePercentRemaining(Math.max(0, 100 - ratio * 100));
     }, GAUGE_TICK_MS);
     return () => clearInterval(interval);
-  }, [gaugeStartTimestamp]);
+  }, [gaugeActive, gaugeStartTimestamp]);
 
   const stageTimezoneLabel = stageTimezone === "Asia/Seoul" ? "KST" : stageTimezone;
 
