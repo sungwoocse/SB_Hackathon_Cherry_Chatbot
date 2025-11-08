@@ -245,7 +245,7 @@ export default function ChatWidget({
           style={{ width: `${IDEATION_WIDTH_REM}rem`, height: `${POPUP_HEIGHT_REM}rem` }}
         >
           <div className="relative bg-[#17243a] border-b border-[#2c3d55] p-5 overflow-hidden flex flex-col justify-end min-h-[13rem]">
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 w-1/4 min-w-[140px] max-w-[220px]">
+            <div className="absolute top-8 left-1/2 translate-x-8 -translate-y-1/2 w-1/4 min-w-[140px] max-w-[220px]">
               <div className="bg-[#0d1423]/80 border border-[#24334d] rounded-xl px-4 py-2 shadow-lg">
                 <div className="h-1.5 bg-[#0b1120] rounded-full overflow-hidden">
                   <div
