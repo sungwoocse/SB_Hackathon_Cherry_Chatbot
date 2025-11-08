@@ -12,7 +12,7 @@ export default function ChatWidget({ onClose }: ChatWidgetProps) {
   const POPUP_HEIGHT_REM = 24; // 기존 세로 크기 유지
   const IDEATION_WIDTH_REM = POPUP_WIDTH_REM; // 동일 폭으로 왼쪽 확장
   const HEADER_HEIGHT_REM = 3; // 1.2x 높이 확보
-  const IDEATION_FEED_HEIGHT_REM = POPUP_HEIGHT_REM * 0.7; // 좌측 텍스트 영역 0.7배
+  const IDEATION_FEED_HEIGHT_REM = POPUP_HEIGHT_REM * 0.3; // 좌측 텍스트 영역을 0.7배로 줄이기 위해 30%만 사용
   const IDEATION_HEADER_HEIGHT_REM = POPUP_HEIGHT_REM - IDEATION_FEED_HEIGHT_REM;
   const [messages, setMessages] = useState<{ sender: "user" | "bot"; text: string }[]>([
     { sender: "bot", text: "안녕하세요! 무엇을 도와드릴까요?" },
