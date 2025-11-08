@@ -38,6 +38,7 @@ export default function ChatWidget({ onClose, stages = [], stageTimezone = "Asia
   const [gaugeStartTimestamp, setGaugeStartTimestamp] = useState<number>(() => Date.now());
   const [gaugePercentRemaining, setGaugePercentRemaining] = useState<number>(100);
   const [gaugeActive, setGaugeActive] = useState<boolean>(false);
+  const hasStageDataRef = useRef<boolean>(false);
   const orderedStages = useMemo(() => {
     const sequenceSet = new Set<string>(STAGE_DISPLAY_SEQUENCE);
     const stageMap = new Map<string, Record<string, unknown>>();
@@ -118,23 +119,34 @@ export default function ChatWidget({ onClose, stages = [], stageTimezone = "Asia
   const stageWindowStart = computeWindowStart();
   const visibleStages = orderedStages.slice(stageWindowStart, stageWindowStart + STAGE_WINDOW_SIZE);
 
+  const hasStageData = orderedStages.length > 0;
+  const stageCompleted =
+    orderedStages.length > 0 &&
+    orderedStages.every(([stage, details]) => {
+      const status = resolveStageStatus(details);
+      return status === "completed" || status === "failed";
+    });
+
   useEffect(() => {
-    if (!orderedStages.length) {
+    if (!hasStageData) {
+      hasStageDataRef.current = false;
       setGaugeActive(false);
       setGaugePercentRemaining(100);
       return;
     }
-    if (progressedCount >= orderedStages.length) {
+    if (stageCompleted) {
+      hasStageDataRef.current = false;
       setGaugeActive(false);
       setGaugePercentRemaining(0);
       return;
     }
-    if (!gaugeActive) {
+    if (!hasStageDataRef.current) {
+      hasStageDataRef.current = true;
       setGaugeActive(true);
       setGaugeStartTimestamp(Date.now());
       setGaugePercentRemaining(100);
     }
-  }, [gaugeActive, orderedStages.length, progressedCount]);
+  }, [hasStageData, stageCompleted]);
 
   useEffect(() => {
     if (!gaugeActive) return;
