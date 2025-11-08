@@ -94,6 +94,24 @@ export interface RollbackRequest {
   branch?: string;
 }
 
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  username: string;
+  expires_at: string;
+}
+
+export interface MeResponse {
+  username: string;
+}
+
+export interface LogoutResponse {
+  success: boolean;
+}
+
 export interface ErrorResponse {
   detail: string;
 }

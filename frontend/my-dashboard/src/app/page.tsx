@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import axios from "axios";
 import ChatWidget from "./components/ChatWidget";
@@ -13,6 +13,9 @@ import type {
   DeployTaskSummary,
   DeployTimelineEntry,
   HealthStatusResponse,
+  LoginResponse,
+  LogoutResponse,
+  MeResponse,
   RiskAssessment,
 } from "@/types/deploy";
 
@@ -21,6 +24,7 @@ const CURRENT_TASK_STORAGE_KEY = "cherry.currentTaskId";
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: JSON_HEADERS,
+  withCredentials: true,
 });
 
 interface DashboardState {
@@ -88,6 +92,11 @@ export default function Page() {
   const [confirmingRollback, setConfirmingRollback] = useState(false);
   const [loginUserId, setLoginUserId] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [authChecking, setAuthChecking] = useState(true);
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginMessage, setLoginMessage] = useState<string | null>(null);
+  const [authUser, setAuthUser] = useState<string | null>(null);
 
   const blueGreenInfo = useMemo<BlueGreenPlan | null>(() => {
     if (previewDetail?.blue_green_plan) return previewDetail.blue_green_plan;
@@ -163,39 +172,132 @@ export default function Page() {
   const preflightRollbackNote =
     typeof preflightRiskAssessment?.rollback === "string" ? preflightRiskAssessment.rollback : null;
 
-  const fetchPreview = async (task?: string | null) => {
-    try {
-      const res = await api.get<DeployPreviewResponse>("/api/v1/preview", {
-        params: task ? { task_id: task } : undefined,
-      });
-      setPreviewDetail(res.data);
-      setLastUpdate(new Date().toLocaleTimeString());
-    } catch (err) {
-      console.error(err);
-      setError("⚠️ 프리뷰 로드 실패");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const handleAuthError = useCallback(
+    (err: unknown, contextMessage?: string) => {
+      if (axios.isAxiosError(err) && err.response?.status === 401) {
+        setIsLoggedIn(false);
+        setAuthUser(null);
+        setLoginMessage("세션이 만료되었습니다. 다시 로그인하세요.");
+        setLoading(false);
+        if (contextMessage) {
+          setError(contextMessage);
+        }
+        return true;
+      }
+      return false;
+    },
+    []
+  );
 
-  const fetchHealth = async () => {
+  const fetchPreview = useCallback(
+    async (task?: string | null) => {
+      if (!isLoggedIn) {
+        return;
+      }
+      try {
+        const res = await api.get<DeployPreviewResponse>("/api/v1/preview", {
+          params: task ? { task_id: task } : undefined,
+        });
+        setPreviewDetail(res.data);
+        setLastUpdate(new Date().toLocaleTimeString());
+      } catch (err) {
+        if (!handleAuthError(err, "⚠️ 프리뷰 로드 실패")) {
+          console.error(err);
+          setError("⚠️ 프리뷰 로드 실패");
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [handleAuthError, isLoggedIn]
+  );
+
+  const fetchHealth = useCallback(async () => {
+    if (!isLoggedIn) return;
     try {
       const res = await api.get<HealthStatusResponse>("/healthz");
       setHealthInfo(res.data);
     } catch (err) {
-      console.error(err);
+      if (!handleAuthError(err)) {
+        console.error(err);
+      }
       setHealthInfo(null);
     }
-  };
+  }, [handleAuthError, isLoggedIn]);
 
-  const fetchRecent = async () => {
+  const fetchRecent = useCallback(async () => {
+    if (!isLoggedIn) return;
     try {
       const res = await api.get<DeployTaskSummary[]>("/api/v1/tasks/recent", {
         params: { limit: 5 },
       });
       setRecentTasks(res.data);
     } catch (err) {
+      if (!handleAuthError(err)) {
+        console.error(err);
+      }
+    }
+  }, [handleAuthError, isLoggedIn]);
+
+  const checkAuth = async () => {
+    setAuthChecking(true);
+    let authenticated = false;
+    try {
+      const res = await api.get<MeResponse>("/api/v1/auth/me");
+      authenticated = true;
+      setIsLoggedIn(true);
+      setAuthUser(res.data.username);
+      setLoginMessage(null);
+    } catch (err) {
+      console.warn("auth check failed", err);
+      setIsLoggedIn(false);
+      setAuthUser(null);
+    } finally {
+      setAuthChecking(false);
+      if (!authenticated) {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleLoginSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setLoginMessage(null);
+    setLoginLoading(true);
+    try {
+      const res = await api.post<LoginResponse>("/api/v1/auth/login", {
+        username: loginUserId,
+        password: loginPassword,
+      });
+      setAuthUser(res.data.username);
+      setIsLoggedIn(true);
+      setLoginUserId("");
+      setLoginPassword("");
+      setLoginMessage("로그인 성공");
+      fetchPreview();
+      fetchHealth();
+      fetchRecent();
+    } catch (err) {
       console.error(err);
+      setIsLoggedIn(false);
+      setLoginMessage("로그인 실패: ID/PW를 확인하세요.");
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await api.post<LogoutResponse>("/api/v1/auth/logout");
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoggedIn(false);
+      setAuthUser(null);
+      setLoginMessage("로그아웃되었습니다.");
+      setTaskId(null);
+      persistTaskId(null);
+      setLoading(false);
     }
   };
 
@@ -232,6 +334,10 @@ export default function Page() {
   };
 
   const handleOpenPreflight = async () => {
+    if (!isLoggedIn) {
+      setError("로그인이 필요합니다.");
+      return;
+    }
     setPreflightOpen(true);
     setPreflightLoading(true);
     setPreflightError(null);
@@ -256,6 +362,10 @@ export default function Page() {
   };
 
   const confirmDeploy = async () => {
+    if (!isLoggedIn) {
+      setError("로그인이 필요합니다.");
+      return;
+    }
     if (startingDeploy) return;
     setStartingDeploy(true);
     setDeploying(true);
@@ -270,8 +380,10 @@ export default function Page() {
       setPreflightOpen(false);
       setPreflightData(null);
     } catch (err) {
-      console.error(err);
-      setError("배포 요청 실패");
+      if (!handleAuthError(err, "배포 요청 실패")) {
+        console.error(err);
+        setError("배포 요청 실패");
+      }
       setDeploying(false);
     } finally {
       setStartingDeploy(false);
@@ -280,6 +392,10 @@ export default function Page() {
 
   const handleRollback = async () => {
     if (rollbacking) return;
+    if (!isLoggedIn) {
+      setError("로그인이 필요합니다.");
+      return;
+    }
     setConfirmingRollback(true);
   };
 
@@ -294,8 +410,10 @@ export default function Page() {
       await fetchRecent();
       setConfirmingRollback(false);
     } catch (err) {
-      console.error(err);
-      setError("롤백 실패");
+      if (!handleAuthError(err, "롤백 실패")) {
+        console.error(err);
+        setError("롤백 실패");
+      }
     } finally {
       setRollbacking(false);
     }
@@ -314,6 +432,7 @@ export default function Page() {
   }, []);
 
   useEffect(() => {
+    if (!isLoggedIn) return;
     fetchPreview();
     fetchHealth();
     fetchRecent();
@@ -325,7 +444,7 @@ export default function Page() {
       clearInterval(healthTimer);
       clearInterval(recentTimer);
     };
-  }, []);
+  }, [fetchHealth, fetchPreview, fetchRecent, isLoggedIn]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -337,12 +456,16 @@ export default function Page() {
   }, []);
 
   useEffect(() => {
-    if (!taskId) return;
-    fetchPreview(taskId);
-  }, [taskId]);
+    checkAuth();
+  }, []);
 
   useEffect(() => {
-    if (!taskId) return;
+    if (!taskId || !isLoggedIn) return;
+    fetchPreview(taskId);
+  }, [fetchPreview, isLoggedIn, taskId]);
+
+  useEffect(() => {
+    if (!taskId || !isLoggedIn) return;
     const interval = setInterval(async () => {
       try {
         const res = await api.get(`/api/v1/status/${taskId}`);
@@ -365,7 +488,9 @@ export default function Page() {
           clearInterval(interval);
         }
       } catch (err) {
-        console.error(err);
+        if (!handleAuthError(err)) {
+          console.error(err);
+        }
         setDeploying(false);
         setTaskId(null);
         persistTaskId(null);
@@ -374,7 +499,7 @@ export default function Page() {
       }
     }, 3000);
     return () => clearInterval(interval);
-  }, [taskId]);
+  }, [fetchPreview, fetchRecent, handleAuthError, isLoggedIn, taskId]);
 
   const effectiveHeroStatus = heroOverrideStatus || state.status || "pending";
   const heroProgress = PROGRESS_BY_STATUS[effectiveHeroStatus] ?? 8;
@@ -518,52 +643,83 @@ export default function Page() {
             <p className="text-2xl font-semibold text-white">Safe Deployment with a Single Click</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <form
-              className="flex flex-wrap items-center gap-2"
-              onSubmit={(event) => {
-                event.preventDefault();
-                setLoginUserId("");
-                setLoginPassword("");
-              }}
-            >
-              <input
-                type="text"
-                value={loginUserId}
-                onChange={(event) => setLoginUserId(event.target.value)}
-                placeholder="ID"
-                className="rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <input
-                type="password"
-                value={loginPassword}
-                onChange={(event) => setLoginPassword(event.target.value)}
-                placeholder="PW"
-                className="rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <button
-                type="submit"
-                className="px-4 py-2 rounded-lg border border-gray-600 text-sm font-semibold text-gray-200 hover:bg-gray-800"
-              >
-                로그인
-              </button>
-            </form>
+            {!isLoggedIn ? (
+              <>
+                <form className="flex flex-wrap items-center gap-2" onSubmit={handleLoginSubmit}>
+                  <input
+                    type="text"
+                    value={loginUserId}
+                    onChange={(event) => setLoginUserId(event.target.value)}
+                    placeholder="ID"
+                    disabled={loginLoading || authChecking}
+                    className="rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
+                  />
+                  <input
+                    type="password"
+                    value={loginPassword}
+                    onChange={(event) => setLoginPassword(event.target.value)}
+                    placeholder="PW"
+                    disabled={loginLoading || authChecking}
+                    className="rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
+                  />
+                  <button
+                    type="submit"
+                    disabled={loginLoading || authChecking}
+                    className="px-4 py-2 rounded-lg border border-gray-600 text-sm font-semibold text-gray-200 hover:bg-gray-800 disabled:opacity-60"
+                  >
+                    {loginLoading ? "..." : "로그인"}
+                  </button>
+                </form>
+                {loginMessage && (
+                  <p className="text-xs text-gray-400 min-w-[120px] text-right">{loginMessage}</p>
+                )}
+              </>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-gray-300">
+                <span className="font-semibold text-white">{authUser || "로그인됨"}</span>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="px-3 py-2 rounded-lg border border-gray-600 text-xs font-semibold text-gray-200 hover:bg-gray-800"
+                  disabled={authChecking}
+                >
+                  로그아웃
+                </button>
+                {loginMessage && <p className="text-xs text-gray-400">{loginMessage}</p>}
+              </div>
+            )}
             <div className="flex gap-2">
               <button
                 onClick={handleOpenPreflight}
-                className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm font-semibold"
+                disabled={!isLoggedIn}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold ${
+                  isLoggedIn
+                    ? "bg-blue-600 hover:bg-blue-500"
+                    : "bg-gray-700 text-gray-400 cursor-not-allowed"
+                }`}
               >
                 Prepare Deploy
               </button>
               <button
                 onClick={handleRollback}
-                disabled={rollbacking}
-                className={`px-4 py-2 rounded-lg border text-sm font-semibold ${rollbacking ? "border-gray-600 text-gray-400" : "border-red-500 text-red-300 hover:bg-red-500/10"}`}
+                disabled={rollbacking || !isLoggedIn}
+                className={`px-4 py-2 rounded-lg border text-sm font-semibold ${
+                  rollbacking || !isLoggedIn
+                    ? "border-gray-600 text-gray-400 cursor-not-allowed"
+                    : "border-red-500 text-red-300 hover:bg-red-500/10"
+                }`}
               >
                 {rollbacking ? "Rolling Back..." : "Rollback"}
               </button>
             </div>
           </div>
         </div>
+
+        {!isLoggedIn && !authChecking && (
+          <p className="mt-4 text-sm text-yellow-300">
+            cherry / coffee 계정으로 로그인해야 배포 기능을 사용할 수 있습니다.
+          </p>
+        )}
 
         <p className="mt-4 text-gray-200 whitespace-pre-line">
           {llmSummary || "배포 준비” 버튼을 눌러 최신 변경 요약과 위험 요소를 확인한 뒤 실제 배포를 실행하세요."}
