@@ -19,6 +19,8 @@ const STAGE_DISPLAY_SEQUENCE = [
   "failed",
 ] as const;
 const STAGE_WINDOW_SIZE = 2;
+const GAUGE_DURATION_MS = 60000; // 60초
+const GAUGE_TICK_MS = 1000;
 
 type StageName = (typeof STAGE_DISPLAY_SEQUENCE)[number] | string;
 
@@ -33,6 +35,8 @@ export default function ChatWidget({ onClose, stages = [], stageTimezone = "Asia
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const primaryEndRef = useRef<HTMLDivElement | null>(null);
+  const [gaugeStartTimestamp, setGaugeStartTimestamp] = useState<number>(() => Date.now());
+  const [gaugePercentRemaining, setGaugePercentRemaining] = useState<number>(100);
   const orderedStages = useMemo(() => {
     const sequenceSet = new Set<string>(STAGE_DISPLAY_SEQUENCE);
     const stageMap = new Map<string, Record<string, unknown>>();
@@ -112,10 +116,20 @@ export default function ChatWidget({ onClose, stages = [], stageTimezone = "Asia
 
   const stageWindowStart = computeWindowStart();
   const visibleStages = orderedStages.slice(stageWindowStart, stageWindowStart + STAGE_WINDOW_SIZE);
-  const totalStages = orderedStages.length || 1;
-  const progressRatio = Math.min(1, progressedCount / totalStages);
-  const progressPercent = Math.round(progressRatio * 100);
-  const gaugePercentRemaining = Math.max(0, 100 - progressPercent);
+
+  useEffect(() => {
+    setGaugeStartTimestamp(Date.now());
+    setGaugePercentRemaining(100);
+  }, [progressedCount]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - gaugeStartTimestamp;
+      const ratio = Math.min(1, elapsed / GAUGE_DURATION_MS);
+      setGaugePercentRemaining(Math.max(0, 100 - ratio * 100));
+    }, GAUGE_TICK_MS);
+    return () => clearInterval(interval);
+  }, [gaugeStartTimestamp]);
 
   const stageTimezoneLabel = stageTimezone === "Asia/Seoul" ? "KST" : stageTimezone;
 
