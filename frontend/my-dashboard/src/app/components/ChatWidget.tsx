@@ -7,6 +7,7 @@ interface ChatWidgetProps {
   onClose?: () => void;
   stages?: Array<[string, Record<string, unknown>]>;
   stageTimezone?: string;
+  heroStatus?: string;
 }
 
 const STAGE_DISPLAY_SEQUENCE = [
@@ -24,7 +25,12 @@ const GAUGE_TICK_MS = 1000;
 
 type StageName = (typeof STAGE_DISPLAY_SEQUENCE)[number] | string;
 
-export default function ChatWidget({ onClose, stages = [], stageTimezone = "Asia/Seoul" }: ChatWidgetProps) {
+export default function ChatWidget({
+  onClose,
+  stages = [],
+  stageTimezone = "Asia/Seoul",
+  heroStatus = "pending",
+}: ChatWidgetProps) {
   const POPUP_WIDTH_REM = 44; // 2.2x 기존 20rem 폭
   const POPUP_HEIGHT_REM = 24; // 기존 세로 크기 유지
   const IDEATION_WIDTH_REM = POPUP_WIDTH_REM; // 동일 폭으로 왼쪽 확장
@@ -126,6 +132,7 @@ export default function ChatWidget({ onClose, stages = [], stageTimezone = "Asia
       const status = resolveStageStatus(details);
       return status === "completed" || status === "failed";
     });
+  const heroCompleted = heroStatus === "completed" || heroStatus === "failed";
 
   useEffect(() => {
     if (!hasStageData) {
@@ -134,7 +141,7 @@ export default function ChatWidget({ onClose, stages = [], stageTimezone = "Asia
       setGaugePercentRemaining(100);
       return;
     }
-    if (stageCompleted) {
+    if (stageCompleted || heroCompleted) {
       hasStageDataRef.current = false;
       setGaugeActive(false);
       setGaugePercentRemaining(0);
@@ -146,7 +153,7 @@ export default function ChatWidget({ onClose, stages = [], stageTimezone = "Asia
       setGaugeStartTimestamp(Date.now());
       setGaugePercentRemaining(100);
     }
-  }, [hasStageData, stageCompleted]);
+  }, [hasStageData, stageCompleted, heroCompleted]);
 
   useEffect(() => {
     if (!gaugeActive) return;

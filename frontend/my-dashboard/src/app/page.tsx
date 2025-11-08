@@ -955,6 +955,7 @@ export default function Page() {
           onClose={() => setChatVisible(false)}
           stages={liveStages}
           stageTimezone={taskTimezone}
+          heroStatus={effectiveHeroStatus}
         />
       )}
       {!chatVisible && (
