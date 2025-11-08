@@ -124,18 +124,14 @@ export default function ChatWidget({ onClose, stages = [], stageTimezone = "Asia
       setGaugePercentRemaining(100);
       return;
     }
-    if (progressedCount >= orderedStages.length && orderedStages.length > 0) {
+    if (progressedCount >= orderedStages.length) {
       setGaugeActive(false);
       setGaugePercentRemaining(0);
       return;
     }
-    if (progressedCount > 0 && !gaugeActive) {
+    if (!gaugeActive) {
       setGaugeActive(true);
       setGaugeStartTimestamp(Date.now());
-      setGaugePercentRemaining(100);
-    }
-    if (progressedCount === 0 && gaugeActive) {
-      setGaugeActive(false);
       setGaugePercentRemaining(100);
     }
   }, [gaugeActive, orderedStages.length, progressedCount]);
