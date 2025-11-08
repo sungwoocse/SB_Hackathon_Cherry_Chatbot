@@ -169,12 +169,7 @@ export default function ChatWidget({ onClose, stages = [], stageTimezone = "Asia
               priority={false}
               unoptimized
             />
-            <div className="relative z-10 pr-28 space-y-2">
-              <p className="text-sm font-semibold tracking-wide uppercase text-blue-50">Deploy Status</p>
-              <p className="text-xs text-gray-300 leading-relaxed">
-                진행 중인 Stage를 순차적으로 추적하며 이상 징후를 빠르게 포착하세요.
-              </p>
-            </div>
+            <div className="relative z-10 pr-28" />
           </div>
           <div className="flex-1 bg-[#101a2b] text-white p-4 overflow-y-auto">
             <div className="flex items-center justify-between">
