@@ -12,6 +12,8 @@ export default function ChatWidget({ onClose }: ChatWidgetProps) {
   const POPUP_HEIGHT_REM = 24; // 기존 세로 크기 유지
   const IDEATION_WIDTH_REM = POPUP_WIDTH_REM; // 동일 폭으로 왼쪽 확장
   const HEADER_HEIGHT_REM = 3; // 1.2x 높이 확보
+  const IDEATION_FEED_HEIGHT_REM = POPUP_HEIGHT_REM * 0.7; // 좌측 텍스트 영역 0.7배
+  const IDEATION_HEADER_HEIGHT_REM = POPUP_HEIGHT_REM - IDEATION_FEED_HEIGHT_REM;
   const [messages, setMessages] = useState<{ sender: "user" | "bot"; text: string }[]>([
     { sender: "bot", text: "안녕하세요! 무엇을 도와드릴까요?" },
   ]);
@@ -83,22 +85,39 @@ export default function ChatWidget({ onClose }: ChatWidgetProps) {
           className="rounded-xl shadow-2xl border border-[#2c3d55] overflow-hidden animate-fade-in origin-bottom-right flex flex-col bg-[#0f1826]"
           style={{ width: `${IDEATION_WIDTH_REM}rem`, height: `${POPUP_HEIGHT_REM}rem` }}
         >
-          <div className="flex flex-col items-center justify-center gap-3 bg-[#17243a] border-b border-[#2c3d55] p-5">
+          <div
+            className="relative bg-[#17243a] border-b border-[#2c3d55] p-5 overflow-hidden"
+            style={{ height: `${IDEATION_HEADER_HEIGHT_REM}rem` }}
+          >
             <Image
               src="/images/idle.png"
               alt="Cherry assistant idle"
               width={160}
               height={160}
-              className="select-none pointer-events-none"
+              className="select-none pointer-events-none absolute top-4 right-4"
               priority={false}
               unoptimized
             />
-            <div className="text-center">
-              <p className="text-sm font-semibold text-blue-100 tracking-wide uppercase">Ideation</p>
-              <p className="text-xs text-gray-400">아이디어 보드에서 대화 흐름을 살펴보세요.</p>
+            <Image
+              src="/images/success.png"
+              alt="Cherry assistant success"
+              width={140}
+              height={140}
+              className="select-none pointer-events-none absolute bottom-4 left-4"
+              priority={false}
+              unoptimized
+            />
+            <div className="text-left text-blue-50 pr-28">
+              <p className="text-sm font-semibold tracking-wide uppercase">Ideation</p>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                아이디어 보드에서 대화 흐름을 살펴보세요.
+              </p>
             </div>
           </div>
-          <div className="flex-1 bg-[#141f30] text-white p-3 overflow-y-auto space-y-2">
+          <div
+            className="bg-[#141f30] text-white p-3 overflow-y-auto space-y-2"
+            style={{ height: `${IDEATION_FEED_HEIGHT_REM}rem` }}
+          >
             {messages.map((m, i) => (
               <div
                 key={`ideation-${i}`}
