@@ -97,7 +97,8 @@ export default function Page() {
     if (!preflightData) return [];
     const notes = preflightData.risk_assessment?.notes;
     const noteList = Array.isArray(notes) ? notes : [];
-    const combined = [...preflightData.warnings, ...noteList].filter(
+    const diffWarnings = Array.isArray(preflightData.diff_stats?.warnings) ? preflightData.diff_stats?.warnings : [];
+    const combined = [...(preflightData.warnings || []), ...diffWarnings, ...noteList].filter(
       (msg): msg is string => typeof msg === "string" && msg.trim().length > 0
     );
     return Array.from(new Set(combined));
@@ -108,6 +109,18 @@ export default function Page() {
   const liveStages = Object.entries(currentStages || {});
   const llmSummary = previewDetail?.llm_preview?.summary ?? null;
   const riskAssessment: RiskAssessment | null = previewDetail?.risk_assessment ?? null;
+  const preflightDiffStats: DiffStats | null = preflightData?.diff_stats ?? null;
+  const preflightDiffSource: DiffSource | null = preflightData?.diff_source ?? null;
+  const preflightCompareMetadata = preflightData?.compare_metadata ?? null;
+  const compareAheadRaw = preflightCompareMetadata?.["ahead_by"];
+  const compareBehindRaw = preflightCompareMetadata?.["behind_by"];
+  const compareHtmlUrlRaw = preflightCompareMetadata?.["html_url"];
+  const comparePermalinkRaw = preflightCompareMetadata?.["permalink_url"];
+  const preflightCompareAhead = typeof compareAheadRaw === "number" ? compareAheadRaw : null;
+  const preflightCompareBehind = typeof compareBehindRaw === "number" ? compareBehindRaw : null;
+  const preflightCompareHtmlUrl = typeof compareHtmlUrlRaw === "string" ? (compareHtmlUrlRaw as string) : null;
+  const preflightComparePermalink =
+    typeof comparePermalinkRaw === "string" ? (comparePermalinkRaw as string) : null;
   const preflightTimeline = useMemo(() => preflightData?.timeline_preview ?? [], [preflightData]);
   const preflightEstimatedSeconds = useMemo<number | null>(() => {
     if (!preflightTimeline.length) return null;
@@ -130,9 +143,17 @@ export default function Page() {
   const preflightRiskAssessment: RiskAssessment | null = preflightData?.risk_assessment ?? null;
   const preflightBlueGreenPlan = preflightData?.blue_green_plan ?? null;
   const preflightFilesChanged =
-    typeof preflightRiskAssessment?.files_changed === "number"
+    typeof preflightDiffStats?.file_count === "number"
+      ? preflightDiffStats.file_count
+      : typeof preflightRiskAssessment?.files_changed === "number"
       ? preflightRiskAssessment.files_changed
       : null;
+  const preflightAddedCount =
+    typeof preflightDiffStats?.added === "number" ? preflightDiffStats.added : null;
+  const preflightModifiedCount =
+    typeof preflightDiffStats?.modified === "number" ? preflightDiffStats.modified : null;
+  const preflightDeletedCount =
+    typeof preflightDiffStats?.deleted === "number" ? preflightDiffStats.deleted : null;
   const preflightDowntimeNote =
     typeof preflightRiskAssessment?.downtime === "string" ? preflightRiskAssessment.downtime : null;
   const preflightRollbackNote =
@@ -783,7 +804,20 @@ export default function Page() {
                         <p className="text-xs uppercase tracking-wide text-blue-300">Gemini Diff Review</p>
                         <p className="text-lg font-semibold text-white mt-1">변경 요약</p>
                       </div>
-                      {renderRiskBadge(preflightRiskAssessment?.risk_level ?? null)}
+                      <div className="flex flex-col items-end gap-2">
+                        {renderRiskBadge(preflightRiskAssessment?.risk_level ?? null)}
+                        {preflightDiffSource && (
+                          <span
+                            className={`text-[11px] uppercase tracking-wide px-3 py-1 rounded-full border ${
+                              preflightDiffSource === "github_compare"
+                                ? "border-purple-500/60 text-purple-200 bg-purple-900/40"
+                                : "border-gray-500/60 text-gray-200 bg-gray-900/40"
+                            }`}
+                          >
+                            {preflightDiffSource === "github_compare" ? "GitHub Compare" : "Working Tree"}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <p className="mt-3 text-sm text-gray-100 whitespace-pre-line leading-relaxed">
                       {preflightData.llm_preview?.summary || "LLM 요약이 없습니다."}
@@ -810,6 +844,27 @@ export default function Page() {
                         </ul>
                       </div>
                     ) : null}
+                    {preflightCompareMetadata && (preflightCompareAhead !== null || preflightCompareBehind !== null || preflightCompareHtmlUrl || preflightComparePermalink) && (
+                      <div className="mt-4 text-xs text-gray-400 space-y-1 border border-gray-800 rounded-lg p-3 bg-gray-950/30">
+                        <p className="text-[11px] uppercase tracking-wide text-gray-500">GitHub Compare 메타</p>
+                        {preflightCompareAhead !== null && <p>Ahead by: <span className="text-gray-100 font-semibold">{preflightCompareAhead}</span></p>}
+                        {preflightCompareBehind !== null && <p>Behind by: <span className="text-gray-100 font-semibold">{preflightCompareBehind}</span></p>}
+                        {preflightCompareHtmlUrl && (
+                          <p>
+                            <a href={preflightCompareHtmlUrl} target="_blank" rel="noreferrer" className="text-blue-300 underline">
+                              GitHub Compare 보기
+                            </a>
+                          </p>
+                        )}
+                        {!preflightCompareHtmlUrl && preflightComparePermalink && (
+                          <p>
+                            <a href={preflightComparePermalink} target="_blank" rel="noreferrer" className="text-blue-300 underline">
+                              Permalink으로 열기
+                            </a>
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="rounded-2xl border border-gray-800 bg-gray-950/40 p-4">
                     <p className="text-xs uppercase tracking-wide text-gray-500">배포 준비 지표</p>
@@ -859,6 +914,47 @@ export default function Page() {
                         </p>
                       )}
                     </div>
+                    {preflightDiffStats && (
+                      <div className="mt-4 border-t border-gray-800 pt-4">
+                        <p className="text-xs uppercase tracking-wide text-gray-500">Git diff 통계</p>
+                        <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
+                          <div>
+                            <p className="text-[11px] uppercase tracking-wide text-gray-500">추가</p>
+                            <p className="text-xl font-semibold text-green-300">{preflightAddedCount ?? 0}</p>
+                          </div>
+                          <div>
+                            <p className="text-[11px] uppercase tracking-wide text-gray-500">수정</p>
+                            <p className="text-xl font-semibold text-yellow-200">{preflightModifiedCount ?? 0}</p>
+                          </div>
+                          <div>
+                            <p className="text-[11px] uppercase tracking-wide text-gray-500">삭제</p>
+                            <p className="text-xl font-semibold text-red-300">{preflightDeletedCount ?? 0}</p>
+                          </div>
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+                          {[
+                            { label: "Lockfile", active: Boolean(preflightDiffStats.lockfile_changed) },
+                            { label: "Config", active: Boolean(preflightDiffStats.config_changed) },
+                            { label: "Env", active: Boolean(preflightDiffStats.env_changed) },
+                            { label: "Secrets", active: Boolean(preflightDiffStats.sensitive_changed) },
+                            { label: "Tests", active: Boolean(preflightDiffStats.test_files_changed) },
+                          ]
+                            .filter((item) => item.active)
+                            .map((item) => (
+                              <span key={`diff-flag-${item.label}`} className="px-2 py-1 rounded-full border border-blue-500/50 text-blue-100 bg-blue-500/10">
+                                {item.label} 변경
+                              </span>
+                            ))}
+                          {!Boolean(
+                            preflightDiffStats.lockfile_changed ||
+                              preflightDiffStats.config_changed ||
+                              preflightDiffStats.env_changed ||
+                              preflightDiffStats.sensitive_changed ||
+                              preflightDiffStats.test_files_changed
+                          ) && <span className="text-gray-500">특별 플래그 없음</span>}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </section>
                 <section className="grid gap-4 md:grid-cols-2">

@@ -41,6 +41,22 @@ export interface RiskAssessment {
   notes?: string[] | null;
 }
 
+export type DiffSource = "working_tree" | "github_compare";
+
+export interface DiffStats {
+  file_count?: number;
+  added?: number;
+  modified?: number;
+  deleted?: number;
+  lockfile_changed?: boolean;
+  env_changed?: boolean;
+  config_changed?: boolean;
+  sensitive_changed?: boolean;
+  test_files_changed?: boolean;
+  warnings?: string[];
+  [key: string]: unknown;
+}
+
 export interface DeployStatusResponse {
   task_id: string;
   status: DeployStatusEnum;
@@ -69,6 +85,9 @@ export interface DeployPreviewResponse {
   task_context?: DeployTaskSummary | null;
   blue_green_plan?: BlueGreenPlan | null;
   timezone?: string | null;
+  diff_source: DiffSource;
+  diff_stats: DiffStats;
+  compare_metadata?: Record<string, unknown> | null;
 }
 
 export interface RollbackRequest {
