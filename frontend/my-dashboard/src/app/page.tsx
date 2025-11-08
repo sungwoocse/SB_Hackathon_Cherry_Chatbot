@@ -8,6 +8,8 @@ import { API_BASE_URL, JSON_HEADERS } from "@/lib/api";
 import type {
   BlueGreenPlan,
   DeployPreviewResponse,
+  DiffSource,
+  DiffStats,
   DeployTaskSummary,
   DeployTimelineEntry,
   HealthStatusResponse,
