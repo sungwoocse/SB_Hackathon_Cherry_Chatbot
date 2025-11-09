@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import axios from "axios";
@@ -972,23 +973,35 @@ export default function Page() {
 
       {preflightOpen && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[10000] p-4">
-          <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-3xl p-6 relative">
-            <button
-              onClick={closePreflight}
-              className="absolute top-3 right-3 text-gray-400 hover:text-white"
-              aria-label="close"
-              disabled={startingDeploy}
-            >
-              ✕
-            </button>
-            <h3 className="text-2xl font-semibold text-white mb-2">배포 사전 브리핑</h3>
-            <p className="text-sm text-gray-400 mb-4">변경 요약과 위험 요소를 검토한 뒤 실제 배포를 진행하세요.</p>
-            {preflightLoading ? (
-              <p className="text-sm text-gray-400">Gemini 프리뷰를 불러오는 중...</p>
-            ) : preflightError ? (
-              <p className="text-sm text-red-400">{preflightError}</p>
-            ) : preflightData ? (
-              <div className="space-y-5 max-h-[65vh] overflow-auto pr-1">
+          <div className="w-full max-w-4xl flex flex-col md:flex-row gap-4">
+            <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 flex flex-col items-center justify-center text-center md:w-72">
+              <Image
+                src="/images/good.png"
+                alt="Cherry assistant success"
+                width={200}
+                height={200}
+                className="w-32 h-32 md:w-40 md:h-40 object-contain drop-shadow-[0_0_24px_rgba(80,255,200,0.35)]"
+                priority={false}
+              />
+              <p className="mt-4 text-sm text-gray-300">Cherry Assistant Ready</p>
+            </div>
+            <div className="bg-gray-900 border border-gray-700 rounded-2xl flex-1 p-6 relative">
+              <button
+                onClick={closePreflight}
+                className="absolute top-3 right-3 text-gray-400 hover:text-white"
+                aria-label="close"
+                disabled={startingDeploy}
+              >
+                ✕
+              </button>
+              <h3 className="text-2xl font-semibold text-white mb-2">배포 사전 브리핑</h3>
+              <p className="text-sm text-gray-400 mb-4">변경 요약과 위험 요소를 검토한 뒤 실제 배포를 진행하세요.</p>
+              {preflightLoading ? (
+                <p className="text-sm text-gray-400">Gemini 프리뷰를 불러오는 중...</p>
+              ) : preflightError ? (
+                <p className="text-sm text-red-400">{preflightError}</p>
+              ) : preflightData ? (
+                <div className="space-y-5 max-h-[65vh] overflow-auto pr-1">
                 <section className="grid gap-4 md:grid-cols-2">
                   <div className="rounded-2xl border border-gray-800 bg-gray-950/50 p-4">
                     <div className="flex items-start justify-between gap-3">
@@ -1298,6 +1311,7 @@ export default function Page() {
               >
                 {startingDeploy ? "배포 시작 중..." : "실제 배포"}
               </button>
+            </div>
             </div>
           </div>
         </div>
