@@ -46,6 +46,10 @@ export default function ChatWidget({
   const [gaugeActive, setGaugeActive] = useState<boolean>(false);
   const [lastStageUpdate, setLastStageUpdate] = useState<number | null>(null);
   const hasStageDataRef = useRef<boolean>(false);
+  const happyAudioRef = useRef<HTMLAudioElement | null>(null);
+  const sadAudioRef = useRef<HTMLAudioElement | null>(null);
+  const hasPlayedHappyRef = useRef<boolean>(false);
+  const hasPlayedSadRef = useRef<boolean>(false);
   const orderedStages = useMemo(() => {
     const sequenceSet = new Set<string>(STAGE_DISPLAY_SEQUENCE);
     const stageMap = new Map<string, Record<string, unknown>>();
@@ -136,6 +140,47 @@ export default function ChatWidget({
   const heroCompleted = heroStatus === "completed" || heroStatus === "failed";
   const deploySucceeded = heroStatus === "completed";
   const deployFailed = heroStatus === "failed";
+
+  useEffect(() => {
+    if (!happyAudioRef.current) {
+      happyAudioRef.current = new Audio("/audios/happy.mp3");
+      happyAudioRef.current.preload = "auto";
+    }
+    if (!sadAudioRef.current) {
+      sadAudioRef.current = new Audio("/audios/sad.mp3");
+      sadAudioRef.current.preload = "auto";
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!deploySucceeded) {
+      hasPlayedHappyRef.current = false;
+      return;
+    }
+    if (hasPlayedHappyRef.current) return;
+    hasPlayedHappyRef.current = true;
+    const audio = happyAudioRef.current;
+    if (!audio) return;
+    audio.currentTime = 0;
+    audio.play().catch(() => {
+      /* ignore autoplay restrictions */
+    });
+  }, [deploySucceeded]);
+
+  useEffect(() => {
+    if (!deployFailed) {
+      hasPlayedSadRef.current = false;
+      return;
+    }
+    if (hasPlayedSadRef.current) return;
+    hasPlayedSadRef.current = true;
+    const audio = sadAudioRef.current;
+    if (!audio) return;
+    audio.currentTime = 0;
+    audio.play().catch(() => {
+      /* ignore autoplay restrictions */
+    });
+  }, [deployFailed]);
 
   useEffect(() => {
     if (hasStageData) {
