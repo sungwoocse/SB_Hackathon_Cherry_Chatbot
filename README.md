@@ -49,7 +49,7 @@ npm run dev
 - **Framework**: Next.js 16 (App Router, Client Components 중심)
 - **언어**: TypeScript 5, React 19
 - **스타일**: Tailwind CSS 4, 커스텀 CSS (`ChatStyles.css`)
-- **애니메이션**: Framer Motion, Lottie React
+- **애니메이션**: Framer Motion, 오픈소스(framer motion)
 - **데이터**: Axios, Fetch API
 - **빌드**: 정적 export (`next.config.ts` → `output: "export"`)
 
@@ -70,7 +70,7 @@ frontend/
     │   │   └── page.tsx           # 메인 대시보드
     │   ├── lib/api.ts             # API 기본 설정
     │   └── types/deploy.ts        # FastAPI 응답 타입
-    ├── public/                    # 이미지, 오디오, mock JSON, Lottie 등
+    ├── public/                    # 이미지, 오디오, mock JSON, 오픈소스(framer motion) 등
     ├── legacy/                    # 사용하지 않는 실험 UI (빌드 제외)
     ├── out/                       # `npm run build` 결과물
     ├── package.json / lockfile
@@ -102,7 +102,7 @@ Client Component 하나가 로그인, 배포 프리뷰, 실시간 Stage 폴링, 
 상태 값은 `sessionStorage`(`cherry.currentTaskId`)를 활용해 새로고침 후에도 이어집니다.
 
 ### 2. 배포 비주얼라이저 (`src/app/deploy/page.tsx`)
-`/deploy` 라우트는 Lottie 애니메이션과 단일 진행 바를 제공하며 `/api/v1/deploy` → `/api/v1/status/{task_id}` 폴링 흐름을 독립적으로 체험할 수 있습니다.
+`/deploy` 라우트는 오픈소스(framer motion) 애니메이션과 단일 진행 바를 제공하며 `/api/v1/deploy` → `/api/v1/status/{task_id}` 폴링 흐름을 독립적으로 체험할 수 있습니다.
 
 ### 3. 챗봇 위젯 (`src/app/components/ChatWidget.tsx`)
 - Stage 윈도우(2개씩)와 60초 게이지, 메시지 리스트, 입력창을 포함합니다.
@@ -135,7 +135,7 @@ Client Component 하나가 로그인, 배포 프리뷰, 실시간 Stage 폴링, 
 - `public/images/*.png`: 캐릭터 일러스트 (Hero, 프리뷰 모달, FloatingCharacter 등).
 - `public/audios/*.mp3`: 성공/실패 사운드.
 - `public/mock/*.json`: 로컬 목업 데이터 (현재 코드에서는 자동 사용 X).
-- `public/lottie/*.json`: `/deploy` 페이지에서 사용하는 애니메이션. 저장소에는 포함되지 않았으므로 배포 환경에서 제공해야 합니다.
+- `public/images/*.png`: `/deploy` 페이지에서 사용하는 애니메이션. 저장소에는 포함되지 않았으므로 배포 환경에서 제공해야 합니다.
 - `out/`: `npm run build` 후 생성되는 정적 산출물. S3, CloudFront 등 정적 호스팅에 그대로 업로드할 수 있습니다.
 
 배포 전 `npm run lint`로 기본 규칙을 통과했는지 확인하는 것을 권장합니다.
@@ -147,7 +147,7 @@ Client Component 하나가 로그인, 배포 프리뷰, 실시간 Stage 폴링, 
 | 증상 | 점검 포인트 |
 | --- | --- |
 | 401 또는 로그인 실패 반복 | 백엔드 CORS 설정에서 `credentials` 허용 여부, HTTPS 도메인 일치 여부, `.env.local` 값 확인 |
-| `/deploy` 애니메이션 미표시 | `public/lottie/*.json` 경로에 파일이 존재하는지 확인 |
+| `/deploy` 애니메이션 미표시 | `public/images/*.png` 경로에 파일이 존재하는지 확인 |
 | 배포 진행률이 갱신되지 않음 | 세션 스토리지에 오래된 `task_id`가 남아 있거나 백엔드 상태 API가 중단되었을 수 있음 |
 | 프리뷰 모달이 비어 있음 | FastAPI에서 `diff_stats`, `risk_assessment`, `llm_preview` 필드를 반환하는지 확인 |
 | ChatWidget 응답 지연 | `/api/v1/chat` 처리 시간 확인, 브라우저 콘솔 네트워크 탭으로 요청 상태 점검 |
