@@ -34,6 +34,8 @@ export default function ChatWidget({
   const POPUP_WIDTH_REM = 44; // 2.2x 기존 20rem 폭
   const POPUP_HEIGHT_REM = 24; // 기존 세로 크기 유지
   const IDEATION_WIDTH_REM = POPUP_WIDTH_REM; // 동일 폭으로 왼쪽 확장
+  const PANEL_MIN_WIDTH_REM = 18;
+  const PANEL_GAP_REM = 1; // gap-4 == 1rem
   const HEADER_HEIGHT_REM = 3; // 1.2x 높이 확보
   const [messages, setMessages] = useState<{ sender: "user" | "bot"; text: string }[]>([
     { sender: "bot", text: "안녕하세요! 무엇을 도와드릴까요?" },
@@ -46,6 +48,8 @@ export default function ChatWidget({
   const [gaugeActive, setGaugeActive] = useState<boolean>(false);
   const [lastStageUpdate, setLastStageUpdate] = useState<number | null>(null);
   const hasStageDataRef = useRef<boolean>(false);
+  const responsivePanelWidth = (maxRem: number) =>
+    `clamp(${PANEL_MIN_WIDTH_REM}rem, calc(50vw - ${PANEL_GAP_REM / 2}rem), ${maxRem}rem)`;
   const happyAudioRef = useRef<HTMLAudioElement | null>(null);
   const sadAudioRef = useRef<HTMLAudioElement | null>(null);
   const hasPlayedHappyRef = useRef<boolean>(false);
@@ -291,6 +295,15 @@ export default function ChatWidget({
     onClose?.();
   };
 
+  const ideationPanelStyle = {
+    width: responsivePanelWidth(IDEATION_WIDTH_REM),
+    height: `${POPUP_HEIGHT_REM}rem`,
+  };
+  const chatbotPanelStyle = {
+    width: responsivePanelWidth(POPUP_WIDTH_REM),
+    height: `${POPUP_HEIGHT_REM}rem`,
+  };
+
   return (
     <>
       {/* ✅ 우측 하단 챗봇 팝업 + 좌측 아이디에이션 확장 */}
@@ -298,7 +311,7 @@ export default function ChatWidget({
         {/* Ideation side panel */}
         <div
           className="rounded-xl shadow-2xl border border-[#2c3d55] overflow-hidden animate-fade-in origin-bottom-right flex flex-col bg-[#0f1826]"
-          style={{ width: `${IDEATION_WIDTH_REM}rem`, height: `${POPUP_HEIGHT_REM}rem` }}
+          style={ideationPanelStyle}
         >
           <div className="relative bg-[#17243a] border-b border-[#2c3d55] p-5 overflow-hidden flex flex-col justify-end min-h-[13rem]">
             <div className="absolute top-8 left-1/2 translate-x-8 -translate-y-1/2 w-1/4 min-w-[140px] max-w-[220px]">
@@ -394,7 +407,7 @@ export default function ChatWidget({
         {/* 기존 챗봇 영역 */}
         <div
           className="rounded-xl shadow-2xl border border-[#2c3d55] overflow-hidden animate-fade-in origin-bottom-right flex flex-col"
-          style={{ width: `${POPUP_WIDTH_REM}rem`, height: `${POPUP_HEIGHT_REM}rem` }}
+          style={chatbotPanelStyle}
         >
           {/* Header */}
           <div
