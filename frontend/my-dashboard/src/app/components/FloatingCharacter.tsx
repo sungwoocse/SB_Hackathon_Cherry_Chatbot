@@ -63,11 +63,12 @@ const FloatingCharacter: React.FC<FloatingCharacterProps> = ({ progress }) => {
     >
       <Image
         src={spriteSrc}
-        alt="Cherry Evolution"
-        width={180}
-        height={180}
-        className="drop-shadow-[0_0_25px_rgba(0,255,255,0.4)] transition-transform duration-500 ease-in-out"
-        priority
+        alt="Cherry assistant success"
+        width={140}
+        height={140}
+        className="drop-shadow-[0_0_25px_rgba(0,255,255,0.4)] transition-transform duration-500 ease-in-out select-none pointer-events-none"
+        priority={false}
+        unoptimized
       />
     </motion.div>
   );
