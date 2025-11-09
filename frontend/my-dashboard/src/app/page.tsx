@@ -982,6 +982,7 @@ export default function Page() {
                 height={200}
                 className="w-32 h-32 md:w-40 md:h-40 object-contain drop-shadow-[0_0_24px_rgba(80,255,200,0.35)]"
                 priority={false}
+                unoptimized
               />
               <p className="mt-4 text-sm text-gray-300">Cherry Assistant Ready</p>
             </div>
