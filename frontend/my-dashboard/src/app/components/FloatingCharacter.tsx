@@ -8,19 +8,10 @@ interface FloatingCharacterProps {
   progress: number; // 0~100
 }
 
-const SPRITE_VARIANTS = [
-  { max: 25, src: "/images/idle.png" },
-  { max: 75, src: "/images/good.png" },
-  { max: 101, src: "/images/success.png" },
-];
-
 const FloatingCharacter: React.FC<FloatingCharacterProps> = ({ progress }) => {
   const controls = useAnimation();
 
-  const spriteSrc = useMemo(() => {
-    const variant = SPRITE_VARIANTS.find((entry) => progress < entry.max);
-    return variant?.src ?? "/images/good.png";
-  }, [progress]);
+  const spriteSrc = useMemo(() => "/images/good.png", [progress]);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
