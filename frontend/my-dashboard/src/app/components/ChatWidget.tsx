@@ -200,16 +200,16 @@ export default function ChatWidget({
   }, [hasStageData, stages]);
 
   useEffect(() => {
-    if (!hasStageData) {
-      hasStageDataRef.current = false;
-      setGaugeActive(false);
-      setGaugePercentRemaining(100);
-      return;
-    }
     if (stageCompleted || heroCompleted) {
       hasStageDataRef.current = false;
       setGaugeActive(false);
       setGaugePercentRemaining(0);
+      return;
+    }
+    if (!hasStageData) {
+      hasStageDataRef.current = false;
+      setGaugeActive(false);
+      setGaugePercentRemaining(100);
       return;
     }
     if (!hasStageDataRef.current) {
