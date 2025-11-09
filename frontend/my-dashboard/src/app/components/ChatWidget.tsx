@@ -142,13 +142,22 @@ export default function ChatWidget({
   const deployFailed = heroStatus === "failed";
 
   useEffect(() => {
+    console.log("[ChatWidget] heroStatus update:", heroStatus, {
+      deploySucceeded,
+      deployFailed,
+    });
+  }, [heroStatus, deploySucceeded, deployFailed]);
+
+  useEffect(() => {
     if (!happyAudioRef.current) {
       happyAudioRef.current = new Audio("/audios/happy.mp3");
       happyAudioRef.current.preload = "auto";
+      console.log("[ChatWidget] happy audio initialized");
     }
     if (!sadAudioRef.current) {
       sadAudioRef.current = new Audio("/audios/sad.mp3");
       sadAudioRef.current.preload = "auto";
+      console.log("[ChatWidget] sad audio initialized");
     }
   }, []);
 
@@ -161,9 +170,10 @@ export default function ChatWidget({
     hasPlayedHappyRef.current = true;
     const audio = happyAudioRef.current;
     if (!audio) return;
+    console.log("[ChatWidget] Playing happy audio due to deploy success");
     audio.currentTime = 0;
-    audio.play().catch(() => {
-      /* ignore autoplay restrictions */
+    audio.play().catch((err) => {
+      console.warn("[ChatWidget] Happy audio playback blocked", err);
     });
   }, [deploySucceeded]);
 
@@ -176,9 +186,10 @@ export default function ChatWidget({
     hasPlayedSadRef.current = true;
     const audio = sadAudioRef.current;
     if (!audio) return;
+    console.log("[ChatWidget] Playing sad audio due to deploy failure");
     audio.currentTime = 0;
-    audio.play().catch(() => {
-      /* ignore autoplay restrictions */
+    audio.play().catch((err) => {
+      console.warn("[ChatWidget] Sad audio playback blocked", err);
     });
   }, [deployFailed]);
 
