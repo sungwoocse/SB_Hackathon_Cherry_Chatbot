@@ -31,8 +31,8 @@ export default function ChatWidget({
   stageTimezone = "Asia/Seoul",
   heroStatus = "pending",
 }: ChatWidgetProps) {
-  const POPUP_WIDTH_REM = 44; // 2.2x 기존 20rem 폭
-  const POPUP_HEIGHT_REM = 24; // 기존 세로 크기 유지
+  const POPUP_WIDTH_REM = 40; // 더 작은 폭으로 조정
+  const POPUP_HEIGHT_REM = 22; // 높이도 약간 축소
   const IDEATION_WIDTH_REM = POPUP_WIDTH_REM; // 동일 폭으로 왼쪽 확장
   const PANEL_MIN_WIDTH_REM = 18;
   const PANEL_GAP_REM = 1; // gap-4 == 1rem
@@ -307,7 +307,7 @@ export default function ChatWidget({
   return (
     <>
       {/* ✅ 우측 하단 챗봇 팝업 + 좌측 아이디에이션 확장 */}
-      <div className="fixed bottom-6 right-6 z-[9999] pointer-events-auto select-none flex justify-end gap-4">
+      <div className="fixed bottom-6 left-4 right-4 z-[9999] pointer-events-auto select-none flex flex-wrap justify-end gap-4">
         {/* Ideation side panel */}
         <div
           className="rounded-xl shadow-2xl border border-[#2c3d55] overflow-hidden animate-fade-in origin-bottom-right flex flex-col bg-[#0f1826]"
@@ -324,28 +324,38 @@ export default function ChatWidget({
                 </div>
               </div>
             </div>
-            <Image
-              src="/images/bad.png"
-              alt="Cherry assistant warning"
-              width={160}
-              height={160}
-              className={`select-none pointer-events-none absolute top-4 right-4 transition-opacity duration-500 ${
+            <div
+              className={`absolute top-4 right-4 flex items-center gap-2 transition-opacity duration-500 ${
                 deploySucceeded ? "opacity-0" : "opacity-100"
               }`}
-              priority={false}
-              unoptimized
-            />
-            <Image
-              src="/images/good.png"
-              alt="Cherry assistant success"
-              width={140}
-              height={140}
-              className={`select-none pointer-events-none absolute bottom-4 left-4 transition-opacity duration-500 ${
+            >
+              <span className="text-xs uppercase tracking-[0.2em] text-red-200">error</span>
+              <Image
+                src="/images/bad.png"
+                alt="Cherry assistant warning"
+                width={160}
+                height={160}
+                className="select-none pointer-events-none"
+                priority={false}
+                unoptimized
+              />
+            </div>
+            <div
+              className={`absolute bottom-4 left-4 flex items-center gap-2 transition-opacity duration-500 ${
                 deployFailed ? "opacity-0" : "opacity-100"
               }`}
-              priority={false}
-              unoptimized
-            />
+            >
+              <Image
+                src="/images/good.png"
+                alt="Cherry assistant success"
+                width={140}
+                height={140}
+                className="select-none pointer-events-none"
+                priority={false}
+                unoptimized
+              />
+              <span className="text-xs uppercase tracking-[0.2em] text-emerald-200">cherry</span>
+            </div>
             <div className="relative z-10 pr-28" />
           </div>
           <div className="flex-1 bg-[#101a2b] text-white p-4 overflow-y-auto">
