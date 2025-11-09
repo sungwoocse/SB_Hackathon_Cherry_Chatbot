@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { motion, useAnimation } from "framer-motion";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 
 interface FloatingCharacterProps {
   progress: number; // 0~100
@@ -16,16 +16,11 @@ const SPRITE_VARIANTS = [
 
 const FloatingCharacter: React.FC<FloatingCharacterProps> = ({ progress }) => {
   const controls = useAnimation();
-  const [sprite, setSprite] = useState("/images/good.png");
 
-  const resolvedSprite = useMemo(() => {
+  const spriteSrc = useMemo(() => {
     const variant = SPRITE_VARIANTS.find((entry) => progress < entry.max);
     return variant?.src ?? "/images/good.png";
   }, [progress]);
-
-  useEffect(() => {
-    setSprite(resolvedSprite);
-  }, [resolvedSprite]);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -35,17 +30,19 @@ const FloatingCharacter: React.FC<FloatingCharacterProps> = ({ progress }) => {
       while (running) {
         const vw = window.innerWidth;
         const vh = window.innerHeight;
-        const x = Math.random() * vw - vw / 2;
-        const y = Math.random() * vh - vh / 2;
+        const offsetX = vw / 2;
+        const offsetY = vh / 2;
+        const x = Math.random() * vw - offsetX;
+        const y = Math.random() * vh - offsetY;
         const rot = Math.random() * 30 - 15;
-        const scale = 0.9 + Math.random() * 0.2;
+        const scale = 0.85 + Math.random() * 0.25;
         await controls.start({
           x,
           y,
           rotate: rot,
           scale,
           transition: {
-            duration: 2.5 + Math.random() * 1.2, // 느리게 (2.5~3.7s)
+            duration: 2.5 + Math.random() * 1.2,
             ease: "easeInOut",
           },
         });
@@ -62,10 +59,10 @@ const FloatingCharacter: React.FC<FloatingCharacterProps> = ({ progress }) => {
     <motion.div
       animate={controls}
       className="absolute inset-0 flex items-center justify-center pointer-events-none select-none"
-      style={{ zIndex: 0, opacity: 0.9 }}
+      style={{ opacity: 0.95 }}
     >
       <Image
-        src={sprite}
+        src={spriteSrc}
         alt="Cherry Evolution"
         width={180}
         height={180}

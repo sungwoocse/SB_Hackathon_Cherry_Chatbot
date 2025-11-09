@@ -753,14 +753,14 @@ export default function Page() {
   return (
     <>
       <motion.div
-        className="pointer-events-none fixed inset-0 z-0"
+        className="pointer-events-none fixed inset-0 z-[200]"
         initial={{ opacity: 0.95 }}
         animate={{ opacity: chatVisible ? 0 : 0.95 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
       >
         <FloatingCharacter progress={heroProgress} />
       </motion.div>
-      <motion.div className="relative z-10 text-gray-200 p-6 md:p-8 min-h-screen bg-gray-900" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6 }}>
+      <motion.div className="relative text-gray-200 p-6 md:p-8 min-h-screen bg-gray-900" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6 }}>
       <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
         <motion.h2 className="text-3xl font-bold text-blue-400">Cherry Deploy Dashboard</motion.h2>
         <p className="text-sm text-gray-400">마지막 업데이트: {lastUpdate || "-"}</p>
