@@ -102,7 +102,7 @@ Client Component 하나가 로그인, 배포 프리뷰, 실시간 Stage 폴링, 
 상태 값은 `sessionStorage`(`cherry.currentTaskId`)를 활용해 새로고침 후에도 이어집니다.
 
 ### 2. 배포 비주얼라이저 (`src/app/deploy/page.tsx`)
-`/deploy` 라우트는 Lottie 애니메이션과 단일 진행 바를 제공하며 `/api/v1/deploy` → `/api/v1/status/{task_id}` 폴링 흐름을 독립적으로 체험할 수 있습니다.
+`/deploy` 라우트는 오픈소스 애니메이션과 단일 진행 바를 제공하며 `/api/v1/deploy` → `/api/v1/status/{task_id}` 폴링 흐름을 독립적으로 체험할 수 있습니다.
 
 ### 3. 챗봇 위젯 (`src/app/components/ChatWidget.tsx`)
 - Stage 윈도우(2개씩)와 60초 게이지, 메시지 리스트, 입력창을 포함합니다.
