@@ -307,7 +307,7 @@ export default function ChatWidget({
   return (
     <>
       {/* ✅ 우측 하단 챗봇 팝업 + 좌측 아이디에이션 확장 */}
-      <div className="fixed bottom-6 left-4 right-4 z-[9999] pointer-events-auto select-none flex flex-wrap justify-end gap-4">
+      <div className="fixed bottom-6 left-4 right-4 z-[9999] pointer-events-auto select-none flex justify-end gap-4 overflow-x-auto">
         {/* Ideation side panel */}
         <div
           className="rounded-xl shadow-2xl border border-[#2c3d55] overflow-hidden animate-fade-in origin-bottom-right flex flex-col bg-[#0f1826]"
