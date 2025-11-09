@@ -973,8 +973,22 @@ export default function Page() {
 
       {preflightOpen && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[10000] p-4">
-          <div className="w-full max-w-4xl flex flex-col md:flex-row gap-4">
-            <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 flex flex-col items-center justify-center text-center md:w-72">
+          <div className="w-full max-w-5xl flex flex-col md:flex-row gap-4">
+            <div className="bg-gray-900 border border-gray-700 rounded-2xl md:h-[19rem] h-[15rem] p-6 flex flex-col items-center justify-center text-center md:w-64 relative">
+              <span
+                aria-hidden="true"
+                className="md:hidden absolute -bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center"
+              >
+                <span className="block w-0 h-0 border-l-[18px] border-r-[18px] border-t-[22px] border-l-transparent border-r-transparent border-t-gray-700" />
+                <span className="block w-0 h-0 -mt-4 border-l-[16px] border-r-[16px] border-t-[20px] border-l-transparent border-r-transparent border-t-gray-900" />
+              </span>
+              <span
+                aria-hidden="true"
+                className="hidden md:flex absolute top-1/2 -right-6 -translate-y-1/2 flex-col"
+              >
+                <span className="block w-0 h-0 border-t-[18px] border-b-[18px] border-l-[24px] border-t-transparent border-b-transparent border-l-gray-700" />
+                <span className="block w-0 h-0 -mt-6 ml-[2px] border-t-[16px] border-b-[16px] border-l-[22px] border-t-transparent border-b-transparent border-l-gray-900" />
+              </span>
               <Image
                 src="/images/good.png"
                 alt="Cherry assistant success"
@@ -986,7 +1000,7 @@ export default function Page() {
               />
               <p className="mt-4 text-sm text-gray-300">Cherry Assistant Ready</p>
             </div>
-            <div className="bg-gray-900 border border-gray-700 rounded-2xl flex-1 p-6 relative">
+            <div className="bg-gray-900 border border-gray-700 rounded-2xl flex-1 md:flex-[1.3] p-6 relative">
               <button
                 onClick={closePreflight}
                 className="absolute top-3 right-3 text-gray-400 hover:text-white"
