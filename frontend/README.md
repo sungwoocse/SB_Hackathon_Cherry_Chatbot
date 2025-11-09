@@ -147,7 +147,7 @@ Client Component 하나가 로그인, 배포 프리뷰, 실시간 Stage 폴링, 
 | 증상 | 점검 포인트 |
 | --- | --- |
 | 401 또는 로그인 실패 반복 | 백엔드 CORS 설정에서 `credentials` 허용 여부, HTTPS 도메인 일치 여부, `.env.local` 값 확인 |
-| `/deploy` 애니메이션 미표시 | `public/lottie/*.json` 경로에 파일이 존재하는지 확인 |
+| `/deploy` 애니메이션 미표시 | `public/imgaes/*.png` 경로에 파일이 존재하는지 확인 |
 | 배포 진행률이 갱신되지 않음 | 세션 스토리지에 오래된 `task_id`가 남아 있거나 백엔드 상태 API가 중단되었을 수 있음 |
 | 프리뷰 모달이 비어 있음 | FastAPI에서 `diff_stats`, `risk_assessment`, `llm_preview` 필드를 반환하는지 확인 |
 | ChatWidget 응답 지연 | `/api/v1/chat` 처리 시간 확인, 브라우저 콘솔 네트워크 탭으로 요청 상태 점검 |
